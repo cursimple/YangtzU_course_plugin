@@ -1,9 +1,12 @@
 const ATRUST_ENTRY_URL = "https://atrust.yangtzeu.edu.cn:4443/";
-const COURSE_HOME_URL = "https://jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn/eams/courseTableForStd.action";
-const COURSE_DETAIL_URL = "https://jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn/eams/courseTableForStd!courseTable.action?sf_request_type=ajax";
 const ATRUST_HOST = "atrust.yangtzeu.edu.cn";
 const COURSE_HOST = "jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn";
+const DIRECT_COURSE_HOST = "jwc3.yangtzeu.edu.cn";
+const COURSE_ORIGIN = `https://${COURSE_HOST}`;
 const COURSE_HOME_PATH = "/eams/courseTableForStd.action";
+const COURSE_DETAIL_PATH = "/eams/courseTableForStd!courseTable.action";
+const COURSE_HOME_URL = `${COURSE_ORIGIN}${COURSE_HOME_PATH}`;
+const COURSE_DETAIL_URL = `${COURSE_ORIGIN}${COURSE_DETAIL_PATH}?sf_request_type=ajax`;
 const COURSE_HOME_CAPTURE_ID = "course-home-html";
 const COURSE_DETAIL_CAPTURE_ID = "course-detail-html";
 const WEBVIEW_USER_AGENT = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36";
@@ -43,6 +46,16 @@ export async function run(ctx) {
   await applyUserAgent(ctx);
 
   const currentUrl = currentPageUrl();
+  const courseProxyUrl = toCourseProxyUrl(currentUrl);
+  if (courseProxyUrl) {
+    ctx.web.open(courseProxyUrl);
+    return {
+      status: "opening-course-proxy",
+      from: currentUrl,
+      to: courseProxyUrl,
+    };
+  }
+
   if (isAuthenticationPage(currentUrl)) {
     return {
       status: "waiting-authentication",
@@ -125,7 +138,7 @@ function isAuthenticationPage(value) {
   }
   const host = url.hostname.toLowerCase();
   const path = url.pathname.toLowerCase();
-  if (isAtrustPortalPage(value) || isAtrustVerifyPage(value)) {
+  if (isAtrustLoginPage(value) || isAtrustVerifyPage(value)) {
     return true;
   }
   if (
@@ -145,6 +158,23 @@ function isAuthenticationPage(value) {
   return false;
 }
 
+function isAtrustLoginPage(value) {
+  const url = parseUrl(value);
+  if (!url || url.hostname.toLowerCase() !== ATRUST_HOST) {
+    return false;
+  }
+  const path = url.pathname.toLowerCase();
+  const hash = url.hash.toLowerCase();
+  const search = url.search.toLowerCase();
+  if (!path.startsWith("/portal/")) {
+    return false;
+  }
+  return path.includes("/shortcut") ||
+    path.includes("/login") ||
+    hash.includes("login") ||
+    search.includes("login");
+}
+
 function isAtrustPortalPage(value) {
   const url = parseUrl(value);
   return !!url &&
@@ -160,7 +190,7 @@ function isAtrustVerifyPage(value) {
 }
 
 function isCourseHomePage(value) {
-  const url = parseUrl(value);
+  const url = parseUrl(toCourseProxyUrl(value) || value);
   return !!url &&
     url.hostname.toLowerCase() === COURSE_HOST &&
     url.pathname === COURSE_HOME_PATH;
@@ -179,6 +209,23 @@ function parseUrl(value, baseUrl = ATRUST_ENTRY_URL) {
   } catch (error) {
     return null;
   }
+}
+
+function toCourseProxyUrl(value, baseUrl) {
+  const url = parseUrl(value, baseUrl);
+  if (!url) {
+    return null;
+  }
+  if (
+    url.hostname.toLowerCase() !== DIRECT_COURSE_HOST ||
+    !url.pathname.toLowerCase().startsWith("/eams/")
+  ) {
+    return null;
+  }
+  url.protocol = "https:";
+  url.hostname = COURSE_HOST;
+  url.port = "";
+  return url.href;
 }
 
 async function readCourseHome(ctx) {
@@ -473,8 +520,8 @@ function extractWebRedirectUrl(html, baseUrl) {
   if (!raw) {
     return null;
   }
-  const url = parseUrl(normalizeRedirectCandidate(raw), baseUrl);
-  return url?.href || null;
+  const target = normalizeRedirectCandidate(raw);
+  return toCourseProxyUrl(target, baseUrl) || parseUrl(target, baseUrl)?.href || null;
 }
 
 function extractRedirectCandidate(html) {

@@ -1,8 +1,8 @@
 {
   "algorithm": "SHA-256",
   "files": {
-    "manifest.json": "c647e05c27fc3e4291d5ea8bb41896b0189d9cb948a63967ea4cd2bfb2317ca0",
-    "main.js": "1fe5f3d585af8b9e399b109e605cf7736c83dc9848f2a8ec4a9e6727bc089606",
+    "manifest.json": "4e09860c0351df33015cac731a1f88c404c0a417384b5f37451ad30228063caa",
+    "main.js": "a48e8b6e27da72c75d870950a916ff9dbe0037388586d8e8bf68129a63d30855",
     "assets/.gitkeep": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
     "models/.gitkeep": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
     "ui/schedule.json": "ea56b7e5047dcc5dec776e2c1ce56bfe6cce7d6978bb72eb52c6fe4f665790fe",

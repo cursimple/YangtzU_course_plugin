@@ -3,6 +3,7 @@ const ATRUST_HOST = "atrust.yangtzeu.edu.cn";
 const COURSE_HOST = "jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn";
 const DIRECT_COURSE_HOST = "jwc3.yangtzeu.edu.cn";
 const COURSE_ORIGIN = `https://${COURSE_HOST}`;
+const COURSE_LOCAL_LOGIN_PATH = "/eams/localLogin.action";
 const COURSE_HOME_PATH = "/eams/courseTableForStd.action";
 const COURSE_DETAIL_PATH = "/eams/courseTableForStd!courseTable.action";
 const COURSE_HOME_URL = `${COURSE_ORIGIN}${COURSE_HOME_PATH}`;
@@ -64,12 +65,19 @@ export async function run(ctx) {
     };
   }
 
-  if (!isCourseDetailPage(currentUrl)) {
+  if (isCourseLocalLoginPage(currentUrl)) {
     ctx.web.open(COURSE_DETAIL_PAGE_URL);
     return {
       status: "opening-course-table",
       from: currentUrl,
       to: COURSE_DETAIL_PAGE_URL,
+    };
+  }
+
+  if (!isCourseDetailPage(currentUrl)) {
+    return {
+      status: "waiting-eams-local-login",
+      url: currentUrl,
     };
   }
 
@@ -143,7 +151,7 @@ function isAuthenticationPage(value) {
   }
   const host = url.hostname.toLowerCase();
   const path = url.pathname.toLowerCase();
-  if (isAtrustLoginPage(value) || isAtrustVerifyPage(value)) {
+  if (isAtrustAuthenticationPage(value) || isAtrustVerifyPage(value)) {
     return true;
   }
   if (
@@ -163,7 +171,7 @@ function isAuthenticationPage(value) {
   return false;
 }
 
-function isAtrustLoginPage(value) {
+function isAtrustAuthenticationPage(value) {
   const url = parseUrl(value);
   if (!url || url.hostname.toLowerCase() !== ATRUST_HOST) {
     return false;
@@ -171,13 +179,20 @@ function isAtrustLoginPage(value) {
   const path = url.pathname.toLowerCase();
   const hash = url.hash.toLowerCase();
   const search = url.search.toLowerCase();
+  const route = `${hash}${search}`;
   if (!path.startsWith("/portal/")) {
     return false;
   }
   return path.includes("/shortcut") ||
     path.includes("/login") ||
-    hash.includes("login") ||
-    search.includes("login");
+    route.includes("login") ||
+    route.includes("smsauth") ||
+    route.includes("authid") ||
+    route.includes("verify") ||
+    route.includes("captcha") ||
+    route.includes("mfa") ||
+    route.includes("otp") ||
+    route.includes("qrcode");
 }
 
 function isAtrustPortalPage(value) {
@@ -199,6 +214,13 @@ function isCourseDetailPage(value) {
   return !!url &&
     url.hostname.toLowerCase() === COURSE_HOST &&
     url.pathname === COURSE_DETAIL_PATH;
+}
+
+function isCourseLocalLoginPage(value) {
+  const url = parseUrl(toCourseProxyUrl(value) || value);
+  return !!url &&
+    url.hostname.toLowerCase() === COURSE_HOST &&
+    url.pathname === COURSE_LOCAL_LOGIN_PATH;
 }
 
 function parseUrl(value, baseUrl = ATRUST_ENTRY_URL) {

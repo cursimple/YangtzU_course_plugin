@@ -6,7 +6,8 @@ const COURSE_ORIGIN = `https://${COURSE_HOST}`;
 const COURSE_HOME_PATH = "/eams/courseTableForStd.action";
 const COURSE_DETAIL_PATH = "/eams/courseTableForStd!courseTable.action";
 const COURSE_HOME_URL = `${COURSE_ORIGIN}${COURSE_HOME_PATH}`;
-const COURSE_DETAIL_URL = `${COURSE_ORIGIN}${COURSE_DETAIL_PATH}?sf_request_type=ajax`;
+const COURSE_DETAIL_PAGE_URL = `${COURSE_ORIGIN}${COURSE_DETAIL_PATH}`;
+const COURSE_DETAIL_AJAX_URL = `${COURSE_DETAIL_PAGE_URL}?sf_request_type=ajax`;
 const COURSE_HOME_CAPTURE_ID = "course-home-html";
 const COURSE_DETAIL_CAPTURE_ID = "course-detail-html";
 const WEBVIEW_USER_AGENT = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36";
@@ -63,12 +64,12 @@ export async function run(ctx) {
     };
   }
 
-  if (!isCourseHomePage(currentUrl)) {
-    ctx.web.open(COURSE_HOME_URL);
+  if (!isCourseDetailPage(currentUrl)) {
+    ctx.web.open(COURSE_DETAIL_PAGE_URL);
     return {
-      status: "opening-course-home",
+      status: "opening-course-table",
       from: currentUrl,
-      to: COURSE_HOME_URL,
+      to: COURSE_DETAIL_PAGE_URL,
     };
   }
 
@@ -79,6 +80,7 @@ export async function run(ctx) {
 
   const courseHomeHtml = courseHome.html;
   const courseMeta = extractMeta(courseHomeHtml);
+  let detailPayloadTemplate = await readCapturedCourseDetailRequestParams(ctx);
   const capturedDetail = await readCapturedCourseDetailHtml(ctx);
   if (!Array.isArray(capturedDetail)) {
     return handlePendingWebResponse(ctx, capturedDetail, currentUrl);
@@ -86,11 +88,14 @@ export async function run(ctx) {
   const detailHtmlParts = capturedDetail;
 
   for (let week = 1; week <= courseMeta.maxWeek; week += 1) {
-    const detail = await requestCourseDetail(ctx, courseMeta, week);
+    const detail = await requestCourseDetail(ctx, courseMeta, week, detailPayloadTemplate);
     if (detail.status !== "ready") {
       return handlePendingWebResponse(ctx, detail, currentUrl);
     }
     detailHtmlParts.push(detail.html);
+    if (!detailPayloadTemplate) {
+      detailPayloadTemplate = await readCapturedCourseDetailRequestParams(ctx);
+    }
   }
 
   const schedule = buildSchedule({
@@ -189,11 +194,11 @@ function isAtrustVerifyPage(value) {
     url.pathname.toLowerCase().startsWith("/controller/v1/public/verify");
 }
 
-function isCourseHomePage(value) {
+function isCourseDetailPage(value) {
   const url = parseUrl(toCourseProxyUrl(value) || value);
   return !!url &&
     url.hostname.toLowerCase() === COURSE_HOST &&
-    url.pathname === COURSE_HOME_PATH;
+    url.pathname === COURSE_DETAIL_PATH;
 }
 
 function parseUrl(value, baseUrl = ATRUST_ENTRY_URL) {
@@ -239,32 +244,24 @@ async function readCourseHome(ctx) {
     method: "GET",
     headers: {
       ...AJAX_HEADERS,
-      Referer: COURSE_HOME_URL,
     },
+    referrer: COURSE_DETAIL_PAGE_URL,
   });
   return classifyCourseHomeResponse(response.text, "fetch", response.url);
 }
 
-async function requestCourseDetail(ctx, meta, week) {
-  const body = new URLSearchParams({
-    ignoreHead: "1",
-    "setting.kind": "std",
-    startWeek: String(week),
-    "project.id": String(meta.projectId),
-    "semester.id": String(meta.semesterId),
-    ids: String(meta.ids),
-  }).toString();
+async function requestCourseDetail(ctx, meta, week, payloadTemplate) {
+  const body = buildCourseDetailBody(meta, week, payloadTemplate);
 
   for (let attempt = 1; attempt <= DETAIL_RETRY_LIMIT; attempt += 1) {
     const response = await requestTextInPage(ctx, {
-      url: COURSE_DETAIL_URL,
+      url: COURSE_DETAIL_AJAX_URL,
       method: "POST",
       headers: {
         ...AJAX_HEADERS,
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        Origin: "https://jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn",
-        Referer: COURSE_DETAIL_URL,
       },
+      referrer: COURSE_DETAIL_PAGE_URL,
       body,
     });
     const detail = classifyCourseDetailResponse(response.text, `fetch-week-${week}`, week, response.url);
@@ -279,11 +276,24 @@ async function requestCourseDetail(ctx, meta, week) {
   throw new Error(`第 ${week} 周课表请求未返回有效内容`);
 }
 
+function buildCourseDetailBody(meta, week, payloadTemplate) {
+  const params = new URLSearchParams(payloadTemplate ? payloadTemplate.toString() : "");
+  params.set("ignoreHead", "1");
+  params.set("setting.kind", "std");
+  params.set("startWeek", String(week));
+  params.set("project.id", String(meta.projectId));
+  params.set("semester.id", String(meta.semesterId));
+  params.set("ids", String(meta.ids));
+  return params.toString();
+}
+
 async function requestTextInPage(ctx, request) {
-  const response = await fetch(request.url, {
+  const fetcher = typeof ctx?.network?.fetch === "function" ? ctx.network.fetch.bind(ctx.network) : fetch;
+  const response = await fetcher(request.url, {
     method: request.method,
     credentials: "include",
     headers: request.headers,
+    referrer: request.referrer || COURSE_DETAIL_PAGE_URL,
     body: request.body || undefined,
   });
 
@@ -338,7 +348,25 @@ async function readCapturedCourseDetailHtml(ctx) {
   return readyHtml;
 }
 
+async function readCapturedCourseDetailRequestParams(ctx) {
+  const packets = await readCapturedNetworkPackets(ctx, COURSE_DETAIL_CAPTURE_ID);
+  for (let index = packets.length - 1; index >= 0; index -= 1) {
+    const requestBody = packetRequestBody(packets[index]);
+    if (typeof requestBody === "string" && requestBody.trim().length > 0) {
+      return new URLSearchParams(requestBody);
+    }
+  }
+  return null;
+}
+
 async function readCapturedResponsePayloads(ctx, captureId) {
+  const packets = await readCapturedNetworkPackets(ctx, captureId);
+  return packets
+    .map(packetResponsePayload)
+    .filter((value) => typeof value?.text === "string" && value.text.trim().length > 0);
+}
+
+async function readCapturedNetworkPackets(ctx, captureId) {
   const web = ctx?.web;
   const packets = [];
   if (typeof web?.packets === "function") {
@@ -353,9 +381,7 @@ async function readCapturedResponsePayloads(ctx, captureId) {
       packets.push(value);
     }
   }
-  return packets
-    .map(packetResponsePayload)
-    .filter((value) => typeof value?.text === "string" && value.text.trim().length > 0);
+  return packets;
 }
 
 function packetResponsePayload(packet) {
@@ -377,6 +403,25 @@ function packetResponsePayload(packet) {
         text: candidate,
         url: typeof packet.url === "string" ? packet.url : "",
       };
+    }
+  }
+  return null;
+}
+
+function packetRequestBody(packet) {
+  if (!packet || typeof packet !== "object") {
+    return null;
+  }
+  const candidates = [
+    packet.requestBody,
+    packet.requestText,
+    packet.request?.body,
+    packet.request?.bodyText,
+    packet.request?.text,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string") {
+      return candidate;
     }
   }
   return null;

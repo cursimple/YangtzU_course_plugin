@@ -1,0 +1,14 @@
+{
+  "termStartDate": "2026-02-23",
+  "timezone": "Asia/Shanghai",
+  "slotTimes": [
+    { "startNode": 1, "endNode": 1, "startTime": "08:00", "endTime": "09:35", "label": "第一节" },
+    { "startNode": 2, "endNode": 2, "startTime": "10:05", "endTime": "11:40", "label": "第二节" },
+    { "startNode": 3, "endNode": 3, "startTime": "12:00", "endTime": "13:35", "label": "午间课" },
+    { "startNode": 4, "endNode": 4, "startTime": "14:00", "endTime": "15:35", "label": "第三节" },
+    { "startNode": 5, "endNode": 5, "startTime": "16:05", "endTime": "17:40", "label": "第四节" },
+    { "startNode": 6, "endNode": 6, "startTime": "18:00", "endTime": "18:45", "label": "晚间课" },
+    { "startNode": 7, "endNode": 7, "startTime": "19:00", "endTime": "20:35", "label": "第五节" },
+    { "startNode": 8, "endNode": 8, "startTime": "20:45", "endTime": "22:20", "label": "第六节" }
+  ]
+}

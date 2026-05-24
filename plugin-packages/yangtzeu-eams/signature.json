@@ -1,0 +1,6 @@
+{
+  "scheme": "unsigned-dev-package",
+  "signed": false,
+  "reason": "No production signing key or signing pipeline is defined in this repository.",
+  "coveredChecksumFile": "checksums.json"
+}

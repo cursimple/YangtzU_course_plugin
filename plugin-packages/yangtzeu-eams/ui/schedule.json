@@ -1,0 +1,22 @@
+{
+  "banners": [
+    {
+      "id": "yangtzeu-banner",
+      "title": "长江大学插件已启用",
+      "message": "课表将通过 CAS 登录后的 EAMS 页面和 AJAX 接口自动解析。"
+    }
+  ],
+  "actionButtons": [
+    {
+      "id": "sync",
+      "label": "重新同步",
+      "actionType": "sync"
+    }
+  ],
+  "courseBadges": [
+    {
+      "id": "yangtzeu-badge",
+      "label": "长江大学"
+    }
+  ]
+}

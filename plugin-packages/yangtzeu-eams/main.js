@@ -6,6 +6,7 @@ const COURSE_ORIGIN = `https://${COURSE_HOST}`;
 const COURSE_LOCAL_LOGIN_PATH = "/eams/localLogin.action";
 const COURSE_HOME_PATH = "/eams/courseTableForStd.action";
 const COURSE_DETAIL_PATH = "/eams/courseTableForStd!courseTable.action";
+const COURSE_LOCAL_LOGIN_URL = `${COURSE_ORIGIN}${COURSE_LOCAL_LOGIN_PATH}`;
 const COURSE_HOME_URL = `${COURSE_ORIGIN}${COURSE_HOME_PATH}`;
 const COURSE_DETAIL_PAGE_URL = `${COURSE_ORIGIN}${COURSE_DETAIL_PATH}`;
 const COURSE_DETAIL_AJAX_URL = `${COURSE_DETAIL_PAGE_URL}?sf_request_type=ajax`;
@@ -65,18 +66,36 @@ export async function run(ctx) {
     };
   }
 
-  if (isCourseLocalLoginPage(currentUrl)) {
-    ctx.web.open(COURSE_DETAIL_PAGE_URL);
+  if (isAtrustAuthenticatedPortalPage(currentUrl)) {
+    ctx.web.open(COURSE_LOCAL_LOGIN_URL);
     return {
-      status: "opening-course-table",
+      status: "opening-eams-local-login",
       from: currentUrl,
-      to: COURSE_DETAIL_PAGE_URL,
+      to: COURSE_LOCAL_LOGIN_URL,
     };
   }
 
-  if (!isCourseDetailPage(currentUrl)) {
+  if (isCourseLocalLoginPage(currentUrl)) {
+    ctx.web.open(COURSE_HOME_URL);
     return {
-      status: "waiting-eams-local-login",
+      status: "opening-course-home",
+      from: currentUrl,
+      to: COURSE_HOME_URL,
+    };
+  }
+
+  if (isCourseHostPage(currentUrl) && !isCourseHomePage(currentUrl)) {
+    ctx.web.open(COURSE_HOME_URL);
+    return {
+      status: "opening-course-home",
+      from: currentUrl,
+      to: COURSE_HOME_URL,
+    };
+  }
+
+  if (!isCourseHomePage(currentUrl)) {
+    return {
+      status: "waiting-course-home-page",
       url: currentUrl,
     };
   }
@@ -185,14 +204,30 @@ function isAtrustAuthenticationPage(value) {
   }
   return path.includes("/shortcut") ||
     path.includes("/login") ||
-    route.includes("login") ||
-    route.includes("smsauth") ||
-    route.includes("authid") ||
-    route.includes("verify") ||
-    route.includes("captcha") ||
-    route.includes("mfa") ||
-    route.includes("otp") ||
-    route.includes("qrcode");
+    looksLikeAtrustAuthenticationRoute(route);
+}
+
+function looksLikeAtrustAuthenticationRoute(route) {
+  const value = String(route || "").toLowerCase();
+  return value.includes("login") ||
+    value.includes("auth/") ||
+    value.includes("page_auth") ||
+    value.includes("smsauth") ||
+    value.includes("authid") ||
+    value.includes("verify") ||
+    value.includes("captcha") ||
+    value.includes("mfa") ||
+    value.includes("otp") ||
+    value.includes("qrcode") ||
+    value.includes("token") ||
+    value.includes("trust_terminal") ||
+    value.includes("other_login") ||
+    value.includes("info_acl") ||
+    value.includes("forbid") ||
+    value.includes("denied") ||
+    value.includes("logout") ||
+    value.includes("password") ||
+    value.includes("passport");
 }
 
 function isAtrustPortalPage(value) {
@@ -202,6 +237,22 @@ function isAtrustPortalPage(value) {
     url.pathname.toLowerCase().startsWith("/portal/");
 }
 
+function isAtrustAuthenticatedPortalPage(value) {
+  const url = parseUrl(value);
+  if (!url || url.hostname.toLowerCase() !== ATRUST_HOST) {
+    return false;
+  }
+  const path = url.pathname.toLowerCase();
+  if (!path.startsWith("/portal/") || path.includes("/shortcut")) {
+    return false;
+  }
+  const route = `${url.hash}${url.search}`.toLowerCase();
+  if (!route) {
+    return false;
+  }
+  return !looksLikeAtrustAuthenticationRoute(route);
+}
+
 function isAtrustVerifyPage(value) {
   const url = parseUrl(value);
   return !!url &&
@@ -209,11 +260,16 @@ function isAtrustVerifyPage(value) {
     url.pathname.toLowerCase().startsWith("/controller/v1/public/verify");
 }
 
-function isCourseDetailPage(value) {
+function isCourseHostPage(value) {
+  const url = parseUrl(toCourseProxyUrl(value) || value);
+  return !!url && url.hostname.toLowerCase() === COURSE_HOST;
+}
+
+function isCourseHomePage(value) {
   const url = parseUrl(toCourseProxyUrl(value) || value);
   return !!url &&
     url.hostname.toLowerCase() === COURSE_HOST &&
-    url.pathname === COURSE_DETAIL_PATH;
+    url.pathname === COURSE_HOME_PATH;
 }
 
 function isCourseLocalLoginPage(value) {

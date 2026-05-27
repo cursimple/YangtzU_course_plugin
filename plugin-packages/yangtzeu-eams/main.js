@@ -1,15 +1,9 @@
 const ATRUST_ENTRY_URL = "https://atrust.yangtzeu.edu.cn:4443/";
-const ATRUST_HOST = "atrust.yangtzeu.edu.cn";
+const COURSE_HOME_URL = "https://jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn/eams/courseTableForStd.action";
+const COURSE_DETAIL_URL = "https://jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn/eams/courseTableForStd!courseTable.action?sf_request_type=ajax";
 const COURSE_HOST = "jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn";
-const DIRECT_COURSE_HOST = "jwc3.yangtzeu.edu.cn";
-const COURSE_ORIGIN = `https://${COURSE_HOST}`;
-const COURSE_LOCAL_LOGIN_PATH = "/eams/localLogin.action";
+const COURSE_DIRECT_HOST = "jwc3.yangtzeu.edu.cn";
 const COURSE_HOME_PATH = "/eams/courseTableForStd.action";
-const COURSE_DETAIL_PATH = "/eams/courseTableForStd!courseTable.action";
-const COURSE_LOCAL_LOGIN_URL = `${COURSE_ORIGIN}${COURSE_LOCAL_LOGIN_PATH}`;
-const COURSE_HOME_URL = `${COURSE_ORIGIN}${COURSE_HOME_PATH}`;
-const COURSE_DETAIL_PAGE_URL = `${COURSE_ORIGIN}${COURSE_DETAIL_PATH}`;
-const COURSE_DETAIL_AJAX_URL = `${COURSE_DETAIL_PAGE_URL}?sf_request_type=ajax`;
 const COURSE_HOME_CAPTURE_ID = "course-home-html";
 const COURSE_DETAIL_CAPTURE_ID = "course-detail-html";
 const WEBVIEW_USER_AGENT = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36";
@@ -19,8 +13,9 @@ const AJAX_HEADERS = {
   "Accept-Language": "zh-CN,zh;q=0.9",
 };
 
-const DETAIL_RETRY_LIMIT = 3;
-const DETAIL_RETRY_DELAY_MS = 400;
+const DETAIL_RETRY_LIMIT = 10;
+const DETAIL_RETRY_DELAY_MS = 800;
+const DETAIL_CONCURRENCY = 2;
 
 const eamsSlotNodeByLabel = {
   "第一节": 1,
@@ -46,19 +41,8 @@ const defaultSlotNodeByIndex = {
 
 export async function run(ctx) {
   assertRuntime(ctx);
-  await applyUserAgent(ctx);
 
   const currentUrl = currentPageUrl();
-  const courseProxyUrl = toCourseProxyUrl(currentUrl);
-  if (courseProxyUrl) {
-    ctx.web.open(courseProxyUrl);
-    return {
-      status: "opening-course-proxy",
-      from: currentUrl,
-      to: courseProxyUrl,
-    };
-  }
-
   if (isAuthenticationPage(currentUrl)) {
     return {
       status: "waiting-authentication",
@@ -66,26 +50,8 @@ export async function run(ctx) {
     };
   }
 
-  if (isAtrustAuthenticatedPortalPage(currentUrl)) {
-    ctx.web.open(COURSE_LOCAL_LOGIN_URL);
-    return {
-      status: "opening-eams-local-login",
-      from: currentUrl,
-      to: COURSE_LOCAL_LOGIN_URL,
-    };
-  }
-
-  if (isCourseLocalLoginPage(currentUrl)) {
-    ctx.web.open(COURSE_HOME_URL);
-    return {
-      status: "opening-course-home",
-      from: currentUrl,
-      to: COURSE_HOME_URL,
-    };
-  }
-
-  if (isCourseHostPage(currentUrl) && !isCourseHomePage(currentUrl)) {
-    ctx.web.open(COURSE_HOME_URL);
+  if (isEamsHomePage(currentUrl)) {
+    globalThis.location.href = COURSE_HOME_URL;
     return {
       status: "opening-course-home",
       from: currentUrl,
@@ -107,22 +73,19 @@ export async function run(ctx) {
 
   const courseHomeHtml = courseHome.html;
   const courseMeta = extractMeta(courseHomeHtml);
-  let detailPayloadTemplate = await readCapturedCourseDetailRequestParams(ctx);
-  const capturedDetail = await readCapturedCourseDetailHtml(ctx);
-  if (!Array.isArray(capturedDetail)) {
-    return handlePendingWebResponse(ctx, capturedDetail, currentUrl);
-  }
-  const detailHtmlParts = capturedDetail;
+  const detailHtmlParts = await readCapturedCourseDetailHtml(ctx);
 
-  for (let week = 1; week <= courseMeta.maxWeek; week += 1) {
-    const detail = await requestCourseDetail(ctx, courseMeta, week, detailPayloadTemplate);
+  const { results: weekResults } = await fetchSampledWeeksParallel(ctx, courseMeta, DETAIL_CONCURRENCY);
+  let pending = null;
+  for (const detail of weekResults) {
     if (detail.status !== "ready") {
-      return handlePendingWebResponse(ctx, detail, currentUrl);
+      if (!pending) pending = detail;
+      continue;
     }
     detailHtmlParts.push(detail.html);
-    if (!detailPayloadTemplate) {
-      detailPayloadTemplate = await readCapturedCourseDetailRequestParams(ctx);
-    }
+  }
+  if (detailHtmlParts.length === 0 && pending) {
+    return handlePendingWebResponse(ctx, pending, currentUrl);
   }
 
   const schedule = buildSchedule({
@@ -147,12 +110,6 @@ function assertRuntime(ctx) {
   requireFunction(ctx?.schedule?.commit, "ctx.schedule.commit");
 }
 
-async function applyUserAgent(ctx) {
-  if (typeof ctx?.web?.setUserAgent === "function") {
-    await ctx.web.setUserAgent(WEBVIEW_USER_AGENT);
-  }
-}
-
 function requireFunction(value, name) {
   if (typeof value !== "function") {
     throw new Error(`插件运行时缺少必要能力: ${name}`);
@@ -170,9 +127,6 @@ function isAuthenticationPage(value) {
   }
   const host = url.hostname.toLowerCase();
   const path = url.pathname.toLowerCase();
-  if (isAtrustAuthenticationPage(value) || isAtrustVerifyPage(value)) {
-    return true;
-  }
   if (
     host === "cas-yangtzeu-edu-cn.atrust.yangtzeu.edu.cn" ||
     host === "authserver.yangtzeu.edu.cn" ||
@@ -184,104 +138,40 @@ function isAuthenticationPage(value) {
   ) {
     return true;
   }
-  if (host === ATRUST_HOST && path.startsWith("/passport/")) {
+  if (host === "atrust.yangtzeu.edu.cn" && path.startsWith("/passport/")) {
     return true;
   }
   return false;
 }
 
-function isAtrustAuthenticationPage(value) {
-  const url = parseUrl(value);
-  if (!url || url.hostname.toLowerCase() !== ATRUST_HOST) {
-    return false;
-  }
-  const path = url.pathname.toLowerCase();
-  const hash = url.hash.toLowerCase();
-  const search = url.search.toLowerCase();
-  const route = `${hash}${search}`;
-  if (!path.startsWith("/portal/")) {
-    return false;
-  }
-  return path.includes("/shortcut") ||
-    path.includes("/login") ||
-    looksLikeAtrustAuthenticationRoute(route);
-}
-
-function looksLikeAtrustAuthenticationRoute(route) {
-  const value = String(route || "").toLowerCase();
-  return value.includes("login") ||
-    value.includes("auth/") ||
-    value.includes("page_auth") ||
-    value.includes("smsauth") ||
-    value.includes("authid") ||
-    value.includes("verify") ||
-    value.includes("captcha") ||
-    value.includes("mfa") ||
-    value.includes("otp") ||
-    value.includes("qrcode") ||
-    value.includes("token") ||
-    value.includes("trust_terminal") ||
-    value.includes("other_login") ||
-    value.includes("info_acl") ||
-    value.includes("forbid") ||
-    value.includes("denied") ||
-    value.includes("logout") ||
-    value.includes("password") ||
-    value.includes("passport");
-}
-
-function isAtrustPortalPage(value) {
-  const url = parseUrl(value);
-  return !!url &&
-    url.hostname.toLowerCase() === ATRUST_HOST &&
-    url.pathname.toLowerCase().startsWith("/portal/");
-}
-
-function isAtrustAuthenticatedPortalPage(value) {
-  const url = parseUrl(value);
-  if (!url || url.hostname.toLowerCase() !== ATRUST_HOST) {
-    return false;
-  }
-  const path = url.pathname.toLowerCase();
-  if (!path.startsWith("/portal/") || path.includes("/shortcut")) {
-    return false;
-  }
-  const route = `${url.hash}${url.search}`.toLowerCase();
-  if (!route) {
-    return false;
-  }
-  return !looksLikeAtrustAuthenticationRoute(route);
-}
-
 function isAtrustVerifyPage(value) {
   const url = parseUrl(value);
   return !!url &&
-    url.hostname.toLowerCase() === ATRUST_HOST &&
+    url.hostname.toLowerCase() === "atrust.yangtzeu.edu.cn" &&
     url.pathname.toLowerCase().startsWith("/controller/v1/public/verify");
 }
 
-function isCourseHostPage(value) {
-  const url = parseUrl(toCourseProxyUrl(value) || value);
-  return !!url && url.hostname.toLowerCase() === COURSE_HOST;
+function isCourseHostUrl(value) {
+  const s = String(value || "").toLowerCase();
+  return s.includes("//" + COURSE_HOST + "/") ||
+    s.includes("//" + COURSE_HOST + ":") ||
+    s.includes("//" + COURSE_DIRECT_HOST + "/") ||
+    s.includes("//" + COURSE_DIRECT_HOST + ":");
 }
 
 function isCourseHomePage(value) {
-  const url = parseUrl(toCourseProxyUrl(value) || value);
-  return !!url &&
-    url.hostname.toLowerCase() === COURSE_HOST &&
-    url.pathname === COURSE_HOME_PATH;
+  const s = String(value || "").toLowerCase();
+  return isCourseHostUrl(s) && s.includes(COURSE_HOME_PATH.toLowerCase());
 }
 
-function isCourseLocalLoginPage(value) {
-  const url = parseUrl(toCourseProxyUrl(value) || value);
-  return !!url &&
-    url.hostname.toLowerCase() === COURSE_HOST &&
-    url.pathname === COURSE_LOCAL_LOGIN_PATH;
+function isEamsHomePage(value) {
+  const s = String(value || "").toLowerCase();
+  return isCourseHostUrl(s) && s.includes("/eams/home.action");
 }
 
-function parseUrl(value, baseUrl = ATRUST_ENTRY_URL) {
+function parseUrl(value) {
   try {
-    const url = new URL(value, baseUrl || ATRUST_ENTRY_URL);
+    const url = new URL(value, ATRUST_ENTRY_URL);
     if (url.protocol !== "http:" && url.protocol !== "https:") {
       return null;
     }
@@ -294,55 +184,85 @@ function parseUrl(value, baseUrl = ATRUST_ENTRY_URL) {
   }
 }
 
-function toCourseProxyUrl(value, baseUrl) {
-  const url = parseUrl(value, baseUrl);
-  if (!url) {
-    return null;
-  }
-  if (
-    url.hostname.toLowerCase() !== DIRECT_COURSE_HOST ||
-    !url.pathname.toLowerCase().startsWith("/eams/")
-  ) {
-    return null;
-  }
-  url.protocol = "https:";
-  url.hostname = COURSE_HOST;
-  url.port = "";
-  return url.href;
-}
-
 async function readCourseHome(ctx) {
+  const dom = readDocumentHtml();
+  if (dom.length > 0) {
+    const classified = classifyCourseHomeResponse(dom, "dom");
+    if (classified.status === "ready") {
+      return classified;
+    }
+  }
+
   const captured = await readCapturedCourseHome(ctx);
   if (captured) {
     return captured;
   }
 
-  const response = await requestTextInPage(ctx, {
+  const html = await requestTextInPage(ctx, {
     url: `${COURSE_HOME_URL}?_=${Date.now()}&sf_request_type=ajax`,
     method: "GET",
     headers: {
       ...AJAX_HEADERS,
+      Referer: COURSE_HOME_URL,
     },
-    referrer: COURSE_DETAIL_PAGE_URL,
   });
-  return classifyCourseHomeResponse(response.text, "fetch", response.url);
+  return classifyCourseHomeResponse(html, "fetch");
 }
 
-async function requestCourseDetail(ctx, meta, week, payloadTemplate) {
-  const body = buildCourseDetailBody(meta, week, payloadTemplate);
+function readDocumentHtml() {
+  try {
+    const doc = globalThis.document;
+    if (!doc || !doc.documentElement) return "";
+    return String(doc.documentElement.outerHTML || "");
+  } catch (e) {
+    return "";
+  }
+}
+
+async function fetchSampledWeeksParallel(ctx, meta, concurrency) {
+  const weeks = Array.from({ length: meta.maxWeek }, (_, i) => i + 1);
+  const results = new Array(weeks.length);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < weeks.length) {
+      const myIndex = cursor;
+      cursor += 1;
+      const week = weeks[myIndex];
+      try {
+        results[myIndex] = await requestCourseDetail(ctx, meta, week);
+      } catch (e) {
+        results[myIndex] = { status: "error", week, reason: e && e.message ? e.message : String(e) };
+      }
+    }
+  }
+  const workerCount = Math.max(1, Math.min(concurrency, weeks.length));
+  await Promise.all(Array.from({ length: workerCount }, worker));
+  return { weeks, results };
+}
+
+async function requestCourseDetail(ctx, meta, week) {
+  const body = new URLSearchParams({
+    ignoreHead: "1",
+    "setting.kind": "std",
+    startWeek: String(week),
+    "project.id": String(meta.projectId),
+    "semester.id": String(meta.semesterId),
+    ids: String(meta.ids),
+  }).toString();
 
   for (let attempt = 1; attempt <= DETAIL_RETRY_LIMIT; attempt += 1) {
-    const response = await requestTextInPage(ctx, {
-      url: COURSE_DETAIL_AJAX_URL,
+    const html = await requestTextInPage(ctx, {
+      url: COURSE_DETAIL_URL,
       method: "POST",
       headers: {
         ...AJAX_HEADERS,
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        Origin: "https://jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn",
+        Referer: COURSE_DETAIL_URL,
       },
-      referrer: COURSE_DETAIL_PAGE_URL,
       body,
     });
-    const detail = classifyCourseDetailResponse(response.text, `fetch-week-${week}`, week, response.url);
+    const detail = classifyCourseDetailResponse(html, `fetch-week-${week}`, week);
 
     if (detail.status !== "waiting-rate-limit" || attempt === DETAIL_RETRY_LIMIT) {
       return detail;
@@ -354,34 +274,18 @@ async function requestCourseDetail(ctx, meta, week, payloadTemplate) {
   throw new Error(`第 ${week} 周课表请求未返回有效内容`);
 }
 
-function buildCourseDetailBody(meta, week, payloadTemplate) {
-  const params = new URLSearchParams(payloadTemplate ? payloadTemplate.toString() : "");
-  params.set("ignoreHead", "1");
-  params.set("setting.kind", "std");
-  params.set("startWeek", String(week));
-  params.set("project.id", String(meta.projectId));
-  params.set("semester.id", String(meta.semesterId));
-  params.set("ids", String(meta.ids));
-  return params.toString();
-}
-
 async function requestTextInPage(ctx, request) {
-  const fetcher = typeof ctx?.network?.fetch === "function" ? ctx.network.fetch.bind(ctx.network) : fetch;
-  const response = await fetcher(request.url, {
+  const response = await fetch(request.url, {
     method: request.method,
     credentials: "include",
     headers: request.headers,
-    referrer: request.referrer || COURSE_DETAIL_PAGE_URL,
     body: request.body || undefined,
   });
 
   const responseText = await response.text();
   if (!response.ok) {
-    if (isWebSessionTransitionHtml(responseText, response.url || request.url)) {
-      return {
-        text: responseText,
-        url: response.url || request.url,
-      };
+    if (isWebSessionTransitionHtml(responseText)) {
+      return responseText;
     }
     throw new Error(`EAMS request failed: ${response.status} ${responseText.slice(0, 120)}`);
   }
@@ -390,18 +294,14 @@ async function requestTextInPage(ctx, request) {
     throw new Error("EAMS 页面请求返回了空内容");
   }
 
-  return {
-    text: responseText,
-    url: response.url || request.url,
-  };
+  return responseText;
 }
 
 async function readCapturedCourseHome(ctx) {
-  const responses = await readCapturedResponsePayloads(ctx, COURSE_HOME_CAPTURE_ID);
-  for (let index = responses.length - 1; index >= 0; index -= 1) {
-    const response = responses[index];
-    const classified = classifyCourseHomeResponse(response.text, "packet", response.url);
-    if (classified.status === "ready" || classified.status.startsWith("navigating-")) {
+  const responseTexts = await readCapturedResponseTexts(ctx, COURSE_HOME_CAPTURE_ID);
+  for (let index = responseTexts.length - 1; index >= 0; index -= 1) {
+    const classified = classifyCourseHomeResponse(responseTexts[index], "packet");
+    if (classified.status === "ready") {
       return classified;
     }
   }
@@ -409,14 +309,11 @@ async function readCapturedCourseHome(ctx) {
 }
 
 async function readCapturedCourseDetailHtml(ctx) {
-  const responses = await readCapturedResponsePayloads(ctx, COURSE_DETAIL_CAPTURE_ID);
+  const responseTexts = await readCapturedResponseTexts(ctx, COURSE_DETAIL_CAPTURE_ID);
   const readyHtml = [];
   const seen = new Set();
-  for (const response of responses) {
-    const classified = classifyCourseDetailResponse(response.text, "packet", null, response.url);
-    if (classified.status.startsWith("navigating-")) {
-      return classified;
-    }
+  for (const text of responseTexts) {
+    const classified = classifyCourseDetailResponse(text, "packet", null);
     if (classified.status !== "ready" || seen.has(classified.html)) {
       continue;
     }
@@ -426,25 +323,7 @@ async function readCapturedCourseDetailHtml(ctx) {
   return readyHtml;
 }
 
-async function readCapturedCourseDetailRequestParams(ctx) {
-  const packets = await readCapturedNetworkPackets(ctx, COURSE_DETAIL_CAPTURE_ID);
-  for (let index = packets.length - 1; index >= 0; index -= 1) {
-    const requestBody = packetRequestBody(packets[index]);
-    if (typeof requestBody === "string" && requestBody.trim().length > 0) {
-      return new URLSearchParams(requestBody);
-    }
-  }
-  return null;
-}
-
-async function readCapturedResponsePayloads(ctx, captureId) {
-  const packets = await readCapturedNetworkPackets(ctx, captureId);
-  return packets
-    .map(packetResponsePayload)
-    .filter((value) => typeof value?.text === "string" && value.text.trim().length > 0);
-}
-
-async function readCapturedNetworkPackets(ctx, captureId) {
+async function readCapturedResponseTexts(ctx, captureId) {
   const web = ctx?.web;
   const packets = [];
   if (typeof web?.packets === "function") {
@@ -459,12 +338,14 @@ async function readCapturedNetworkPackets(ctx, captureId) {
       packets.push(value);
     }
   }
-  return packets;
+  return packets
+    .map(packetResponseBody)
+    .filter((value) => typeof value === "string" && value.trim().length > 0);
 }
 
-function packetResponsePayload(packet) {
+function packetResponseBody(packet) {
   if (!packet || typeof packet !== "object") {
-    return null;
+    return "";
   }
   const candidates = [
     packet.responseBody,
@@ -477,35 +358,13 @@ function packetResponsePayload(packet) {
   ];
   for (const candidate of candidates) {
     if (typeof candidate === "string") {
-      return {
-        text: candidate,
-        url: typeof packet.url === "string" ? packet.url : "",
-      };
-    }
-  }
-  return null;
-}
-
-function packetRequestBody(packet) {
-  if (!packet || typeof packet !== "object") {
-    return null;
-  }
-  const candidates = [
-    packet.requestBody,
-    packet.requestText,
-    packet.request?.body,
-    packet.request?.bodyText,
-    packet.request?.text,
-  ];
-  for (const candidate of candidates) {
-    if (typeof candidate === "string") {
       return candidate;
     }
   }
-  return null;
+  return "";
 }
 
-function classifyCourseHomeResponse(html, source, baseUrl) {
+function classifyCourseHomeResponse(html, source) {
   return classifyWebResponse(html, source, (value) => {
     if (hasCourseHomeMeta(value)) {
       return {
@@ -519,10 +378,10 @@ function classifyCourseHomeResponse(html, source, baseUrl) {
       source,
       reason: "课程首页尚未返回 EAMS 课表元数据",
     };
-  }, baseUrl);
+  });
 }
 
-function classifyCourseDetailResponse(html, source, week, baseUrl) {
+function classifyCourseDetailResponse(html, source, week) {
   return classifyWebResponse(html, source, (value) => {
     if (value.includes("请不要过快点击")) {
       return {
@@ -546,10 +405,10 @@ function classifyCourseDetailResponse(html, source, week, baseUrl) {
       week,
       html: value,
     };
-  }, baseUrl);
+  });
 }
 
-function classifyWebResponse(html, source, readyClassifier, baseUrl) {
+function classifyWebResponse(html, source, readyClassifier) {
   const value = typeof html === "string" ? html.trim() : "";
   if (value.length === 0) {
     return {
@@ -559,30 +418,12 @@ function classifyWebResponse(html, source, readyClassifier, baseUrl) {
     };
   }
 
-  const atrustVerifyUrl = extractAtrustVerifyUrl(value, baseUrl);
+  const atrustVerifyUrl = extractAtrustVerifyUrl(value);
   if (atrustVerifyUrl) {
     return {
       status: "navigating-atrust-verification",
       source,
       to: atrustVerifyUrl,
-    };
-  }
-
-  if (isAtrustPortalPage(baseUrl) || looksLikeAtrustPortalHtml(value)) {
-    return {
-      status: "waiting-authentication",
-      source,
-      reason: "ATrust 仍在认证或门户跳转中，等待浏览器完成当前页面",
-    };
-  }
-
-  const redirectUrl = extractWebRedirectUrl(value, baseUrl);
-  if (redirectUrl) {
-    return {
-      status: "navigating-web-redirect",
-      source,
-      to: redirectUrl,
-      reason: "页面返回了 HTML+JS 跳转脚本",
     };
   }
 
@@ -598,7 +439,7 @@ function classifyWebResponse(html, source, readyClassifier, baseUrl) {
 }
 
 function handlePendingWebResponse(ctx, state, currentUrl) {
-  if (state.status.startsWith("navigating-") && state.to && typeof ctx?.web?.open === "function") {
+  if (state.status === "navigating-atrust-verification" && state.to && typeof ctx?.web?.open === "function") {
     ctx.web.open(state.to);
   }
   return {
@@ -612,24 +453,20 @@ function handlePendingWebResponse(ctx, state, currentUrl) {
   };
 }
 
-function isWebSessionTransitionHtml(html, baseUrl) {
-  return !!extractAtrustVerifyUrl(html, baseUrl) ||
-    isAtrustPortalPage(baseUrl) ||
-    looksLikeAtrustPortalHtml(html) ||
-    !!extractWebRedirectUrl(html, baseUrl) ||
-    looksLikeAuthenticationHtml(html);
+function isWebSessionTransitionHtml(html) {
+  return !!extractAtrustVerifyUrl(html) || looksLikeAuthenticationHtml(html);
 }
 
-function extractAtrustVerifyUrl(html, baseUrl) {
-  const raw = firstGroupOrNull(html, /locationUrl\s*=\s*(?:decodeURIComponent\(\s*)?["']([^"']+)["']\s*\)?/i);
+function extractAtrustVerifyUrl(html) {
+  const raw = firstGroupOrNull(html, /locationUrl\s*=\s*["']([^"']+)["']/);
   if (!raw) {
     return null;
   }
-  const url = parseUrl(normalizeRedirectCandidate(raw), baseUrl);
+  const url = parseUrl(decodeJsString(raw));
   if (!url) {
     return null;
   }
-  if (url.hostname.toLowerCase() !== ATRUST_HOST) {
+  if (url.hostname.toLowerCase() !== "atrust.yangtzeu.edu.cn") {
     return null;
   }
   if (!url.pathname.toLowerCase().startsWith("/controller/v1/public/verify")) {
@@ -638,73 +475,14 @@ function extractAtrustVerifyUrl(html, baseUrl) {
   return url.href;
 }
 
-function extractWebRedirectUrl(html, baseUrl) {
-  const raw = extractRedirectCandidate(html);
-  if (!raw) {
-    return null;
-  }
-  const target = normalizeRedirectCandidate(raw);
-  return toCourseProxyUrl(target, baseUrl) || parseUrl(target, baseUrl)?.href || null;
-}
-
-function extractRedirectCandidate(html) {
-  const patterns = [
-    /locationUrl\s*=\s*(?:decodeURIComponent\(\s*)?["']([^"']+)["']\s*\)?/i,
-    /(?:window|top|self)\.location(?:\.href)?\s*=\s*(?:decodeURIComponent\(\s*)?["']([^"']+)["']\s*\)?/i,
-    /(?:window|top|self)\.location\.(?:replace|assign)\(\s*(?:decodeURIComponent\(\s*)?["']([^"']+)["']\s*\)?\s*\)/i,
-    /\blocation(?:\.href)?\s*=\s*(?:decodeURIComponent\(\s*)?["']([^"']+)["']\s*\)?/i,
-    /\blocation\.(?:replace|assign)\(\s*(?:decodeURIComponent\(\s*)?["']([^"']+)["']\s*\)?\s*\)/i,
-    /<meta[^>]+http-equiv=["']refresh["'][^>]+content=["'][^"']*url\s*=\s*["']?([^"'<>\s]+)["']?/i,
-  ];
-  for (const pattern of patterns) {
-    const raw = firstGroupOrNull(html, pattern);
-    if (raw) {
-      return raw;
-    }
-  }
-  return null;
-}
-
-function normalizeRedirectCandidate(raw) {
-  let value = decodeJsString(raw);
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const decoded = safeDecodeURIComponent(value);
-    if (decoded === value) {
-      break;
-    }
-    value = decoded;
-  }
-  return value.trim();
-}
-
-function safeDecodeURIComponent(value) {
-  try {
-    return decodeURIComponent(value);
-  } catch (error) {
-    return value;
-  }
-}
-
 function looksLikeAuthenticationHtml(html) {
   const lower = html.toLowerCase();
   return lower.includes("authserver.yangtzeu.edu.cn") ||
     lower.includes("cas.yangtzeu.edu.cn") ||
-    lower.includes("/portal/#/login") ||
-    lower.includes("/portal/shortcut.html") ||
     lower.includes("/passport/") ||
     html.includes("统一身份认证") ||
     html.includes("用户登录") ||
     html.includes("扫码登录");
-}
-
-function looksLikeAtrustPortalHtml(html) {
-  const lower = html.toLowerCase();
-  return lower.includes("atrust.yangtzeu.edu.cn:4443/portal/") ||
-    lower.includes("atrust.yangtzeu.edu.cn/portal/") ||
-    lower.includes("/portal/#/login") ||
-    lower.includes("/portal/#/page_app_handler") ||
-    lower.includes("/portal/shortcut.html") ||
-    lower.includes("shortcut_main.js");
 }
 
 function hasCourseHomeMeta(html) {

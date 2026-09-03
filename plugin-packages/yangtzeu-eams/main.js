@@ -1,6 +1,7 @@
 const ATRUST_ENTRY_URL = "https://atrust.yangtzeu.edu.cn:4443/";
 const COURSE_HOME_URL = "https://jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn/eams/courseTableForStd.action";
 const COURSE_DETAIL_URL = "https://jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn/eams/courseTableForStd!courseTable.action?sf_request_type=ajax";
+const SEMESTER_QUERY_URL = "https://jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn/eams/dataQuery.action";
 const COURSE_HOST = "jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn";
 const COURSE_DIRECT_HOST = "jwc3.yangtzeu.edu.cn";
 const COURSE_HOME_PATH = "/eams/courseTableForStd.action";
@@ -13,6 +14,7 @@ const AJAX_HEADERS = {
   "Accept-Language": "zh-CN,zh;q=0.9",
 };
 
+const SEMESTER_PROBE_LIMIT = 4;
 const DETAIL_RETRY_LIMIT = 10;
 const DETAIL_RETRY_DELAY_MS = 800;
 const DETAIL_CONCURRENCY = 2;
@@ -72,8 +74,8 @@ export async function run(ctx) {
   }
 
   const courseHomeHtml = courseHome.html;
-  const courseMeta = extractMeta(courseHomeHtml);
-  const detailHtmlParts = await readCapturedCourseDetailHtml(ctx);
+  const courseMeta = await resolveCourseMeta(ctx, extractMeta(courseHomeHtml));
+  const detailHtmlParts = await readCapturedCourseDetailHtml(ctx, courseMeta.semesterId);
 
   const { results: weekResults } = await fetchSampledWeeksParallel(ctx, courseMeta, DETAIL_CONCURRENCY);
   let pending = null;
@@ -219,6 +221,117 @@ function readDocumentHtml() {
   }
 }
 
+/**
+ * 教务系统有时把上一个学期当成当前学期返回，页面上的 semester.id 因此不可尽信。
+ * 这里列出全部学期，从最新的往回试，取第一个真的排了课的学期；
+ * 学期列表取不到或都试不出课时，退回页面自己给的那个学期。
+ */
+async function resolveCourseMeta(ctx, meta) {
+  const candidates = await semesterCandidates(ctx, meta);
+  for (const candidate of candidates.slice(0, SEMESTER_PROBE_LIMIT)) {
+    if (candidate === meta.semesterId) {
+      return meta;
+    }
+    const probe = await probeSemester(ctx, meta, candidate);
+    if (probe) {
+      return { ...meta, semesterId: candidate, maxWeek: probe.maxWeek || meta.maxWeek };
+    }
+  }
+  return meta;
+}
+
+/** 返回按学年学期从新到旧排列的学期 id，页面当前学期始终作为兜底排在最后。 */
+async function semesterCandidates(ctx, meta) {
+  const listed = await fetchSemesterList(ctx, meta);
+  const ordered = listed
+    .slice()
+    .sort((a, b) => compareSemesterDesc(a, b))
+    .map((item) => item.id);
+  const result = [];
+  for (const id of ordered.concat([meta.semesterId])) {
+    if (id && !result.includes(id)) {
+      result.push(id);
+    }
+  }
+  return result;
+}
+
+/** 学年靠后的更新；同一学年内学期序号大的更新。 */
+function compareSemesterDesc(a, b) {
+  if (a.year !== b.year) {
+    return b.year - a.year;
+  }
+  return b.term - a.term;
+}
+
+async function fetchSemesterList(ctx, meta) {
+  const body = new URLSearchParams({
+    tagId: "semesterBar",
+    dataType: "semesterCalendar",
+    value: String(meta.semesterId),
+    empty: "false",
+  }).toString();
+
+  const raw = await requestTextInPage(ctx, {
+    url: `${SEMESTER_QUERY_URL}?sf_request_type=ajax`,
+    method: "POST",
+    headers: {
+      ...AJAX_HEADERS,
+      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+      Origin: `https://${COURSE_HOST}`,
+      Referer: COURSE_HOME_URL,
+    },
+    body,
+  }).catch(() => "");
+
+  return parseSemesterList(raw);
+}
+
+/**
+ * 学期列表接口返回的是 JS 对象字面量而非严格 JSON，键与值都可能不带引号，
+ * 因此按条目逐个取字段而不是整体解析。
+ */
+function parseSemesterList(raw) {
+  if (typeof raw !== "string" || raw.length === 0) {
+    return [];
+  }
+  const items = [];
+  for (const match of raw.matchAll(/\{[^{}]*\bid\s*:\s*"?(\d+)"?[^{}]*\}/g)) {
+    const entry = match[0];
+    const id = match[1];
+    const schoolYear = firstGroupOrNull(entry, /schoolYear\s*:\s*"?(\d{4})/);
+    const name = firstGroupOrNull(entry, /name\s*:\s*"?([^",}]+)/);
+    if (!schoolYear) {
+      continue;
+    }
+    items.push({
+      id,
+      year: Number(schoolYear),
+      term: Number(String(name || "").replace(/[^\d]/g, "")) || 0,
+    });
+  }
+  return items;
+}
+
+/** 取该学期第一周的课表，排了课才认为这个学期可用。 */
+async function probeSemester(ctx, meta, semesterId) {
+  const detail = await requestCourseDetail(ctx, { ...meta, semesterId }, 1)
+    .catch(() => null);
+  if (!detail || detail.status !== "ready" || countActivities(detail.html) === 0) {
+    return null;
+  }
+  const maxWeek = Number(firstGroupOrNull(detail.html, /var maxWeek = (\d+);/)) || 0;
+  return { maxWeek };
+}
+
+function countActivities(html) {
+  let count = 0;
+  for (const _ of String(html).matchAll(/activity = new TaskActivity\(/g)) {
+    count += 1;
+  }
+  return count;
+}
+
 async function fetchSampledWeeksParallel(ctx, meta, concurrency) {
   const weeks = Array.from({ length: meta.maxWeek }, (_, i) => i + 1);
   const results = new Array(weeks.length);
@@ -308,11 +421,22 @@ async function readCapturedCourseHome(ctx) {
   return null;
 }
 
-async function readCapturedCourseDetailHtml(ctx) {
-  const responseTexts = await readCapturedResponseTexts(ctx, COURSE_DETAIL_CAPTURE_ID);
+/**
+ * 抓到的课表响应可能来自别的学期，请求体里带着当时用的 semester.id，
+ * 与本次学期对不上的直接丢掉，免得两个学期的课混在一起。
+ */
+async function readCapturedCourseDetailHtml(ctx, semesterId) {
+  const packets = await readCapturedPackets(ctx, COURSE_DETAIL_CAPTURE_ID);
   const readyHtml = [];
   const seen = new Set();
-  for (const text of responseTexts) {
+  for (const packet of packets) {
+    if (!matchesSemester(packetRequestBody(packet), semesterId)) {
+      continue;
+    }
+    const text = packetResponseBody(packet);
+    if (typeof text !== "string" || text.trim().length === 0) {
+      continue;
+    }
     const classified = classifyCourseDetailResponse(text, "packet", null);
     if (classified.status !== "ready" || seen.has(classified.html)) {
       continue;
@@ -321,6 +445,12 @@ async function readCapturedCourseDetailHtml(ctx) {
     readyHtml.push(classified.html);
   }
   return readyHtml;
+}
+
+/** 请求体里读不出 semester.id 时不作判断，保留原有的抓包兜底。 */
+function matchesSemester(requestBody, semesterId) {
+  const captured = firstGroupOrNull(String(requestBody || ""), /semester\.id=(\d+)/);
+  return !captured || captured === String(semesterId);
 }
 
 async function readCapturedResponseTexts(ctx, captureId) {
@@ -341,6 +471,38 @@ async function readCapturedResponseTexts(ctx, captureId) {
   return packets
     .map(packetResponseBody)
     .filter((value) => typeof value === "string" && value.trim().length > 0);
+}
+
+async function readCapturedPackets(ctx, captureId) {
+  const web = ctx?.web;
+  const packets = [];
+  if (typeof web?.packets === "function") {
+    const value = await web.packets(captureId);
+    if (Array.isArray(value)) {
+      packets.push(...value);
+    }
+  }
+  if (typeof web?.packet === "function") {
+    const value = await web.packet(captureId);
+    if (value) {
+      packets.push(value);
+    }
+  }
+  return packets.filter((packet) => packet && typeof packet === "object");
+}
+
+function packetRequestBody(packet) {
+  const candidates = [
+    packet.requestBody,
+    packet.request?.body,
+    packet.request?.bodyText,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string") {
+      return candidate;
+    }
+  }
+  return "";
 }
 
 function packetResponseBody(packet) {

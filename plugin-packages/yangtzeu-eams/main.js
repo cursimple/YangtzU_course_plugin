@@ -5,6 +5,7 @@ const SEMESTER_QUERY_URL = "https://jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.c
 const COURSE_HOST = "jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn";
 const COURSE_DIRECT_HOST = "jwc3.yangtzeu.edu.cn";
 const COURSE_HOME_PATH = "/eams/courseTableForStd.action";
+const COURSE_TABLE_PATH = "/eams/courseTableForStd!courseTable.action";
 const COURSE_HOME_CAPTURE_ID = "course-home-html";
 const COURSE_DETAIL_CAPTURE_ID = "course-detail-html";
 const WEBVIEW_USER_AGENT = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36";
@@ -77,7 +78,15 @@ export async function run(ctx) {
   const courseMeta = await resolveCourseMeta(ctx, extractMeta(courseHomeHtml));
   const detailHtmlParts = await readCapturedCourseDetailHtml(ctx, courseMeta.semesterId);
 
-  const { results: weekResults } = await fetchSampledWeeksParallel(ctx, courseMeta, DETAIL_CONCURRENCY);
+  // 周次下拉框里有「全部」时先按全部周取一次：每门课都带着自己的上课周次（validWeeks），
+  // 一次就能拿全。没有这个选项、或取不到课时，退回逐周请求——那要发二十来个请求，
+  // 还常被教务的「请不要过快点击」限流
+  const allWeeks = courseMeta.hasAllWeeksOption
+    ? await requestCourseDetail(ctx, courseMeta, "").catch(() => null)
+    : null;
+  const { results: weekResults } = allWeeks && allWeeks.status === "ready" && countActivities(allWeeks.html) > 0
+    ? { results: [allWeeks] }
+    : await fetchSampledWeeksParallel(ctx, courseMeta, DETAIL_CONCURRENCY);
   let pending = null;
   for (const detail of weekResults) {
     if (detail.status !== "ready") {
@@ -161,9 +170,14 @@ function isCourseHostUrl(value) {
     s.includes("//" + COURSE_DIRECT_HOST + ":");
 }
 
+/**
+ * 课表首页加载完后，页面会把地址换成 courseTableForStd!courseTable.action
+ * （WebView 只报告换过之后的地址），两个都要认，否则 run 一直停在等待首页。
+ */
 function isCourseHomePage(value) {
   const s = String(value || "").toLowerCase();
-  return isCourseHostUrl(s) && s.includes(COURSE_HOME_PATH.toLowerCase());
+  return isCourseHostUrl(s) &&
+    (s.includes(COURSE_HOME_PATH.toLowerCase()) || s.includes(COURSE_TABLE_PATH.toLowerCase()));
 }
 
 function isEamsHomePage(value) {
@@ -670,6 +684,8 @@ function toScheduleDraftCourse(course) {
     startNode: course.time.startNode,
     endNode: course.time.endNode,
     category: course.category,
+    // 课程详情里逐条列出；不认识这个字段的旧版 App 会直接忽略
+    details: course.details || [],
   };
 }
 
@@ -687,7 +703,25 @@ function extractMeta(html) {
     ids: firstGroup(html, /bg\.form\.addInput\(form,"ids","([^"]+)"\)/, "未找到学生 ids"),
     projectId: firstGroupOrNull(html, /project\.id=([^&']+)/) || "1",
     maxWeek,
+    hasAllWeeksOption: hasAllWeeksOption(html),
   };
+}
+
+/**
+ * 周次下拉框里有没有值为空的「全部」选项。有它才说明 startWeek 传空就是整学期；
+ * 没有的话传空的含义说不准（可能只回某一周），宁可逐周请求也不冒丢课的险。
+ */
+function hasAllWeeksOption(html) {
+  const firstWeek = html.search(/<option value="\d+">第\d+周<\/option>/);
+  if (firstWeek < 0) {
+    return false;
+  }
+  const selectStart = html.lastIndexOf("<select", firstWeek);
+  const selectEnd = html.indexOf("</select>", firstWeek);
+  if (selectStart < 0 || selectEnd < 0) {
+    return false;
+  }
+  return /<option value=""/.test(html.slice(selectStart, selectEnd));
 }
 
 function buildSchedule(input) {
@@ -698,7 +732,8 @@ function buildSchedule(input) {
   }
   const unitCount = Number(firstGroupOrNull(detailHtml, /var unitCount = (\d+);/)) || 8;
   const teacherMap = parseTeacherMap(detailHtml);
-  const activities = parseActivities(detailHtml, unitCount, meta.maxWeek, teacherMap);
+  const lessonInfo = parseLessonTable(detailHtml);
+  const activities = parseActivities(detailHtml, unitCount, meta.maxWeek, teacherMap, lessonInfo);
   const grouped = {};
   for (const course of activities) {
     const day = String(course.time.dayOfWeek);
@@ -727,7 +762,58 @@ function parseTeacherMap(detailHtml) {
   return result;
 }
 
-function parseActivities(detailHtml, unitCount, maxWeek, teacherMap) {
+/**
+ * 课表下面那张课程列表：序号 | 课程代码 | 课程名称 | 学分 | 课程序号 | 教师 | 备注 | 操作。
+ *
+ * 按表头文字认列而不是按位置，教务调了列序也不会张冠李戴；认不出表头时返回空，
+ * 课程详情里就只剩课程序号，不影响导课本身。返回「课程序号 → 附加信息」。
+ */
+function parseLessonTable(detailHtml) {
+  const result = {};
+  let columns = null;
+  for (const row of String(detailHtml).matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)) {
+    const cells = [];
+    for (const cell of row[1].matchAll(/<t([dh])[^>]*>([\s\S]*?)<\/t\1>/gi)) {
+      cells.push(cell[2]);
+    }
+    const texts = cells.map(cellText);
+    if (!columns) {
+      const code = texts.indexOf("课程代码");
+      const sequence = texts.indexOf("课程序号");
+      if (code >= 0 && sequence >= 0) {
+        columns = { code, sequence, credit: texts.indexOf("学分"), remark: texts.indexOf("备注") };
+      }
+      continue;
+    }
+    const sequence = texts[columns.sequence];
+    if (!/^\d+$/.test(sequence || "")) {
+      continue;
+    }
+    const pick = (index) => (index >= 0 ? texts[index] || "" : "");
+    result[sequence] = [
+      { label: "课程代码", value: pick(columns.code) },
+      { label: "学分", value: pick(columns.credit) },
+      { label: "备注", value: pick(columns.remark) },
+    ].filter((field) => field.value.length > 0);
+  }
+  return result;
+}
+
+function cellText(html) {
+  return decodeHtmlEntities(String(html).replace(/<[^>]*>/g, "")).replace(/\s+/g, " ").trim();
+}
+
+function decodeHtmlEntities(value) {
+  return value
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&amp;/g, "&");
+}
+
+function parseActivities(detailHtml, unitCount, maxWeek, teacherMap, lessonInfo = {}) {
   const slotNodeMap = parseSlotNodeMap(detailHtml, unitCount);
   const blockPattern = /var teachers = \[(.*?)];.*?activity = new TaskActivity\((.*?)\);\s*((?:index\s*=\s*\d+\s*\*\s*unitCount\s*\+\s*\d+\s*;\s*table\d+\.activities\[index]\[table\d+\.activities\[index]\.length]=activity;\s*)+)/gs;
   const courses = [];
@@ -747,7 +833,8 @@ function parseActivities(detailHtml, unitCount, maxWeek, teacherMap) {
     const rawCourseLabel = literals[1];
     const location = literals[3];
     const validWeeks = literals[4];
-    const sequence = extractSequence(rawCourseLabel) || extractSequence(taskToken) || `activity-${position}`;
+    const courseSequence = extractSequence(rawCourseLabel) || extractSequence(taskToken);
+    const sequence = courseSequence || `activity-${position}`;
     const teacher = (firstGroupOrNull(teacherBlock, /name:"([^"]+)"/) || teacherMap[sequence] || "").trim();
     const indices = [];
     for (const indexMatch of indexBlock.matchAll(/index\s*=\s*(\d+)\s*\*\s*unitCount\s*\+\s*(\d+)\s*;/g)) {
@@ -773,6 +860,9 @@ function parseActivities(detailHtml, unitCount, maxWeek, teacherMap) {
       location,
       weeks: parseWeeks(validWeeks, maxWeek),
       category: "course",
+      details: courseSequence
+        ? [{ label: "课程序号", value: courseSequence }, ...(lessonInfo[courseSequence] || [])]
+        : [],
       time: {
         dayOfWeek,
         startNode,

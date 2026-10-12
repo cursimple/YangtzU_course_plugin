@@ -32,11 +32,6 @@ test('不同抓包的节次数独立解析，跨行节次继承前端 rowspan',(
  const s=build('',{detailHtmlParts:[first,second]});
  assert.deepEqual(courses(s).map(x=>x.time.startNode),[1,2]);
 });
-test('纯脚本响应也优先参考当前前端的辅修排布',()=>{
- const frontend=row(0,0,'第一节')+row(1,0,'第四节',2)+'<tr><td id="TD1_1"></td></tr>';
- const s=build('var unitCount = 16;'+activity('2002',[[1,1,1]]),{frontendHtml:frontend});
- assert.deepEqual(courses(s)[0].time,{dayOfWeek:2,startNode:5,endNode:5});
-});
 test('辅修课程列表调整列序后课程代码、学分仍对应本课程',()=>{
  const list='<tr><th>课程代码</th><th>课程序号</th><th>学分</th></tr><tr><td>MAIN-01</td><td>1001</td><td>4.5</td></tr>'+
  '<tr><th>学分</th><th>课程代码</th><th>课程序号</th></tr><tr><td>2.0</td><td>MINOR-02</td><td>2002</td></tr>';

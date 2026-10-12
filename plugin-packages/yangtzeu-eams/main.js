@@ -75,21 +75,8 @@ export async function run(ctx) {
   }
 
   const courseHomeHtml = courseHome.html;
-  const homeMeta = extractMeta(courseHomeHtml);
-  const frontendHtml = readDocumentHtml();
-  // 课表页顶部有多个培养方案标签（主修／辅修／双学位）时，几张表的节次和课程列表都不一样，
-  // 自动抓取容易把它们混成一份，所以停下来，等用户在页面上选好再手动点「上传课表」。
-  if (!ctx?.manual && hasMultipleCourseTabs(frontendHtml || courseHomeHtml)) {
-    return {
-      status: "manual-required",
-      hold: true,
-      reason: "页面有多个培养方案，请选择后点击上传",
-    };
-  }
-  // Visible primary/minor grids are authoritative for their selected semester.
-  const courseMeta = countActivities(frontendHtml) > 0 ? homeMeta : await resolveCourseMeta(ctx, homeMeta);
-  const detailHtmlParts = await readCapturedCourseDetailHtml(ctx, courseMeta);
-  if (countActivities(frontendHtml) > 0 && courseMeta.semesterId === homeMeta.semesterId) detailHtmlParts.unshift(frontendHtml);
+  const courseMeta = await resolveCourseMeta(ctx, extractMeta(courseHomeHtml));
+  const detailHtmlParts = await readCapturedCourseDetailHtml(ctx, courseMeta.semesterId);
 
   // 周次下拉框里有「全部」时先按全部周取一次：每门课都带着自己的上课周次（validWeeks），
   // 一次就能拿全。没有这个选项、或取不到课时，退回逐周请求——那要发二十来个请求，
@@ -114,19 +101,11 @@ export async function run(ctx) {
 
   const schedule = buildSchedule({
     meta: courseMeta,
-    detailHtmlParts,
-    frontendHtml: courseMeta.semesterId === homeMeta.semesterId ? frontendHtml : "",
+    detailHtml: detailHtmlParts.join("\n"),
     termId: courseMeta.semesterId,
     updatedAt: new Date().toISOString(),
   });
 
-  const latestHtml = readDocumentHtml();
-  if (latestHtml) {
-    try {
-      const latestMeta = extractMeta(latestHtml);
-      if (latestMeta.ids !== homeMeta.ids || latestMeta.semesterId !== homeMeta.semesterId) return { status: "waiting-current-context" };
-    } catch (_) { return { status: "waiting-course-home-page" }; }
-  }
   for (const dailySchedule of schedule.dailySchedules) {
     for (const course of dailySchedule.courses) {
       ctx.schedule.addCourse(toScheduleDraftCourse(course));
@@ -378,38 +357,6 @@ function countActivities(html) {
   return count;
 }
 
-/**
- * 课表页顶部出现多个培养方案标签时，说明这名学生同时有多张课表
- * （主修、辅修、双学位等）。几张表的节次行和课程列表都不一样，
- * 自动抓取会把它们混成一份，所以停下来交给用户自己选。
- *
- * 不认固定文字，只看结构：页面上出现多个不同的 projectId，
- * 或同一个标签条里有两个以上指向课表页、参数各不相同的链接。
- */
-function hasMultipleCourseTabs(html) {
-  const text = String(html || "");
-  if (!text) {
-    return false;
-  }
-  const projects = new Set();
-  for (const match of text.matchAll(/projectId=(\d+)/g)) {
-    projects.add(match[1]);
-  }
-  if (projects.size >= 2) {
-    return true;
-  }
-  for (const block of text.matchAll(/<(ul|ol|nav)\b[^>]*>([\s\S]{0,4000}?)<\/\1>/gi)) {
-    const targets = new Set();
-    for (const link of block[2].matchAll(/<a\b[^>]*href=["']([^"']*courseTable[^"']*)["']/gi)) {
-      targets.add(link[1]);
-    }
-    if (targets.size >= 2) {
-      return true;
-    }
-  }
-  return false;
-}
-
 async function fetchSampledWeeksParallel(ctx, meta, concurrency) {
   const weeks = Array.from({ length: meta.maxWeek }, (_, i) => i + 1);
   const results = new Array(weeks.length);
@@ -503,13 +450,14 @@ async function readCapturedCourseHome(ctx) {
 /**
  * 抓到的课表响应可能来自别的学期，请求体里带着当时用的 semester.id，
  * 与本次学期对不上的直接丢掉，免得两个学期的课混在一起。
+ * 请求体里读不出 semester.id 时不作判断，保留原有的抓包兜底。
  */
-async function readCapturedCourseDetailHtml(ctx, meta) {
+async function readCapturedCourseDetailHtml(ctx, semesterId) {
   const packets = await readCapturedPackets(ctx, COURSE_DETAIL_CAPTURE_ID);
   const readyHtml = [];
   const seen = new Set();
   for (const packet of packets) {
-    if (!matchesCourseAccount(packetRequestBody(packet), meta)) {
+    if (!matchesSemester(packetRequestBody(packet), semesterId)) {
       continue;
     }
     const text = packetResponseBody(packet);
@@ -526,11 +474,9 @@ async function readCapturedCourseDetailHtml(ctx, meta) {
   return readyHtml;
 }
 
-// Captured tables must belong to both the current student and semester.
-function matchesCourseAccount(requestBody, meta) {
-  const params = new URLSearchParams(String(requestBody || ""));
-  return params.get("semester.id") === String(meta.semesterId) &&
-    params.get("ids") === String(meta.ids);
+function matchesSemester(requestBody, semesterId) {
+  const captured = firstGroupOrNull(String(requestBody || ""), /semester\.id=(\d+)/);
+  return !captured || captured === String(semesterId);
 }
 
 async function readCapturedResponseTexts(ctx, captureId) {
@@ -799,7 +745,7 @@ function buildSchedule(input) {
   const parts = input.detailHtmlParts || [detailHtml];
   const activities = parts.flatMap(part => {
     const unitCount = Number(firstGroupOrNull(part, /(?:var|let|const)\s+unitCount\s*=\s*(\d+)\s*;/)) || 8;
-    return parseActivities(part, unitCount, meta.maxWeek, parseTeacherMap(part), parseLessonTable(part), input.frontendHtml || "");
+    return parseActivities(part, unitCount, meta.maxWeek, parseTeacherMap(part), parseLessonTable(part));
   }).filter((course, index, all) => all.findIndex(other => other.id === course.id) === index);
   const grouped = {};
   for (const course of activities) {
@@ -878,7 +824,7 @@ function decodeHtmlEntities(value) {
     .replace(/&amp;/g, "&");
 }
 
-function parseActivities(detailHtml, unitCount, maxWeek, teacherMap, lessonInfo = {}, frontendHtml = "") {
+function parseActivities(detailHtml, unitCount, maxWeek, teacherMap, lessonInfo = {}) {
   const blockPattern = /(?:var|let|const)\s+teachers\s*=\s*\[(.*?)\]\s*;[\s\S]*?activity\s*=\s*new\s+TaskActivity\s*\((.*?)\)\s*;\s*((?:index\s*=\s*\d+\s*\*\s*unitCount\s*\+\s*\d+\s*;\s*table\d+\.activities\s*\[\s*index\s*\]\s*\[\s*table\d+\.activities\s*\[\s*index\s*\]\.length\s*\]\s*=\s*activity\s*;\s*)+)/gs;
   const courses = [];
   const slotMappings = new Map();
@@ -900,7 +846,7 @@ function parseActivities(detailHtml, unitCount, maxWeek, teacherMap, lessonInfo 
       if (day < 1 || day > 7) throw new Error("课表星期索引超出范围");
       const mappingKey = `${blockUnits}:${table}`;
       if (!slotMappings.has(mappingKey)) slotMappings.set(mappingKey,
-        { ...parseSlotNodeMap(frontendHtml, blockUnits, table), ...parseSlotNodeMap(detailHtml, blockUnits, table) });
+        parseSlotNodeMap(detailHtml, blockUnits, table));
       const node = resolveSlotNode(slot, blockUnits, slotMappings.get(mappingKey));
       const key = `${table}:${day}`;
       if (!groups.has(key)) groups.set(key, { day, nodes: new Set() });

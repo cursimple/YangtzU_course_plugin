@@ -18,5 +18,95 @@
       "id": "yangtzeu-badge",
       "label": "长江大学"
     }
+  ],
+  "timetableRows": [
+    {
+      "id": "midday",
+      "title": "显示午间课",
+      "titles": {
+        "zh-CN": "显示午间课",
+        "zh-TW": "顯示午間課",
+        "en": "Show midday classes"
+      },
+      "startNode": 3,
+      "endNode": 3,
+      "slotLabel": "午间课",
+      "defaultVisible": true,
+      "startTime": "12:00",
+      "endTime": "13:35"
+    },
+    {
+      "id": "evening",
+      "title": "显示晚间课",
+      "titles": {
+        "zh-CN": "显示晚间课",
+        "zh-TW": "顯示晚間課",
+        "en": "Show evening classes"
+      },
+      "startNode": 6,
+      "endNode": 6,
+      "slotLabel": "晚间课",
+      "defaultVisible": true,
+      "startTime": "18:00",
+      "endTime": "18:45"
+    }
+  ],
+  "timetableRowFormat": [
+    {
+      "startNode": 1,
+      "endNode": 1,
+      "startTime": "08:00",
+      "endTime": "09:35",
+      "label": "第一节"
+    },
+    {
+      "startNode": 2,
+      "endNode": 2,
+      "startTime": "10:05",
+      "endTime": "11:40",
+      "label": "第二节"
+    },
+    {
+      "startNode": 3,
+      "endNode": 3,
+      "startTime": "12:00",
+      "endTime": "13:35",
+      "label": "午间课"
+    },
+    {
+      "startNode": 4,
+      "endNode": 4,
+      "startTime": "14:00",
+      "endTime": "15:35",
+      "label": "第三节"
+    },
+    {
+      "startNode": 5,
+      "endNode": 5,
+      "startTime": "16:05",
+      "endTime": "17:40",
+      "label": "第四节"
+    },
+    {
+      "startNode": 6,
+      "endNode": 6,
+      "startTime": "18:00",
+      "endTime": "18:45",
+      "label": "晚间课"
+    },
+    {
+      "startNode": 7,
+      "endNode": 7,
+      "startTime": "19:00",
+      "endTime": "20:35",
+      "label": "第五节"
+    },
+    {
+      "startNode": 8,
+      "endNode": 8,
+      "startTime": "20:45",
+      "endTime": "22:20",
+      "label": "第六节"
+    }
   ]
 }

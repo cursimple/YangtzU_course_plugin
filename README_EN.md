@@ -146,3 +146,9 @@ Thanks to Yangtze University EAMS for providing the data interface.
 **Class Schedule Viewer** © [cursimple](https://github.com/cursimple) · Made with ❤️
 
 </div>
+
+## Timetable display settings
+
+With the paired local CurSimple build and plugin 1.0.35, tap the separate Plugin settings button on the installed plugin card to control midday and evening rows. Both switches default on. Empty rows can be removed; occupied rows stay visible. Switches update the current local timetable immediately, without importing or syncing again. Only timetables imported by this plugin with the complete eight-row Yangtze University format, including midday and evening rows, qualify. Other sources, incomplete formats and legacy timetables without a recorded importer keep all rows visible; the last selected plugin is never treated as proof of origin. For an older plugin import, use Confirm legacy source once in Plugin settings to enable the switches after the complete format check, without signing in or reimporting. The reversible display link belongs only to the reviewed timetable. These settings affect display only and retain course, period-time and reminder data.
+
+After about five seconds without automatic import on the timetable page, Upload schedule is offered and page controls remain available. Incomplete runs retry at the declared interval without duplicating active imports; manual upload waits for a ready draft. Primary and minor grids map periods separately, splitting weekdays and disjoint ranges and respecting row spans and course-list column order.

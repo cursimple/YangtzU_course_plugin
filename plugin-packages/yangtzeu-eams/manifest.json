@@ -2,8 +2,8 @@
   "id": "yangtzeu-eams-js-v1",
   "name": "长江大学教务插件 JS v1",
   "publisher": "Class Schedule Viewer",
-  "version": "1.0.34",
-  "versionCode": 1034,
+  "version": "1.0.35",
+  "versionCode": 1035,
   "apiVersion": 2,
   "entry": "main.js",
   "startUrl": "https://atrust.yangtzeu.edu.cn:4443/",
@@ -17,7 +17,9 @@
   ],
   "webSession": {
     "completionStableDelayMs": 1500,
-    "autoCompleteOnScheduleDraft": true
+    "autoCompleteOnScheduleDraft": true,
+    "manualUploadHintDelayMs": 5000,
+    "retryIncompleteAfterMs": 2000
   },
   "networkCaptures": [
     {
@@ -26,9 +28,13 @@
       "method": "GET",
       "urlHost": "jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn",
       "urlPathContains": "/eams/courseTableForStd.action",
-      "responseHeaders": ["content-type"],
+      "responseHeaders": [
+        "content-type"
+      ],
       "captureResponseBody": true,
-      "responseBodyMimeTypes": ["text/html"],
+      "responseBodyMimeTypes": [
+        "text/html"
+      ],
       "maxBodyBytes": 262144,
       "maxPackets": 8
     },
@@ -38,11 +44,18 @@
       "method": "POST",
       "urlHost": "jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn",
       "urlPathContains": "/eams/courseTableForStd!courseTable.action",
-      "requestHeaders": ["content-type", "x-requested-with"],
-      "responseHeaders": ["content-type"],
+      "requestHeaders": [
+        "content-type",
+        "x-requested-with"
+      ],
+      "responseHeaders": [
+        "content-type"
+      ],
       "captureRequestBody": true,
       "captureResponseBody": true,
-      "responseBodyMimeTypes": ["text/html"],
+      "responseBodyMimeTypes": [
+        "text/html"
+      ],
       "maxBodyBytes": 1048576,
       "maxPackets": 64
     }
@@ -74,5 +87,6 @@
     "maxCapturedTextBytes": 1048576,
     "maxOutputBytes": 1048576
   },
-  "dataPackVersion": "1"
+  "dataPackVersion": "1",
+  "minHostVersion": "0.7.10"
 }

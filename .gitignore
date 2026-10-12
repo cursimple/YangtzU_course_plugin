@@ -1,2 +1,5 @@
 dist/
 *.zip
+
+# Local planning notes.
+/docs/

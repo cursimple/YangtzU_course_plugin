@@ -1,9 +1,9 @@
 {
   "algorithm": "SHA-256",
   "files": {
+    "main.js": "798865716914a13aa88436ada1414ae317043b5699ed7907004a5b765e7be1a3",
+    "manifest.json": "662975c66edd8b04e4841196caa4fd7251965a2f2ac71e8da87f2380a89b22ee",
     "datapack/timing.json": "31123da9995c39b54f6c517c9cf647c3902aaa7a7fc9753700e3c6c2ffd10bdf",
-    "main.js": "bda1bf3e70ede047532fdece7c666d3ca90b23a68b031bae4e7489303c759e82",
-    "manifest.json": "07a41182beab827d83f77a6e6478c121e4b32a26bd5d3a6621edd581752d7567",
     "ui/schedule.json": "ece8ad50a510a31fc8f5b44c4aa3490b13adca43244c80c3f083e5f4d6a953d7"
   }
 }

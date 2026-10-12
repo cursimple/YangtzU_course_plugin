@@ -54,11 +54,11 @@ export async function run(ctx) {
   }
 
   if (isEamsHomePage(currentUrl)) {
-    globalThis.location.href = courseUrl(COURSE_HOME_URL);
+    globalThis.location.href = COURSE_HOME_URL;
     return {
       status: "opening-course-home",
       from: currentUrl,
-      to: courseUrl(COURSE_HOME_URL),
+      to: COURSE_HOME_URL,
     };
   }
 
@@ -162,17 +162,6 @@ function isAtrustVerifyPage(value) {
     url.pathname.toLowerCase().startsWith("/controller/v1/public/verify");
 }
 
-// Keep requests on the currently authenticated direct or proxy portal.
-function courseUrl(value) {
-  const current = parseUrl(currentPageUrl());
-  const target = new URL(value);
-  if (current && [COURSE_HOST, COURSE_DIRECT_HOST].includes(current.hostname.toLowerCase())) {
-    target.protocol = current.protocol;
-    target.host = current.host;
-  }
-  return target.href;
-}
-
 function isCourseHostUrl(value) {
   const s = String(value || "").toLowerCase();
   return s.includes("//" + COURSE_HOST + "/") ||
@@ -226,11 +215,11 @@ async function readCourseHome(ctx) {
   }
 
   const html = await requestTextInPage(ctx, {
-    url: `${courseUrl(COURSE_HOME_URL)}?_=${Date.now()}&sf_request_type=ajax`,
+    url: `${COURSE_HOME_URL}?_=${Date.now()}&sf_request_type=ajax`,
     method: "GET",
     headers: {
       ...AJAX_HEADERS,
-      Referer: courseUrl(COURSE_HOME_URL),
+      Referer: COURSE_HOME_URL,
     },
   });
   return classifyCourseHomeResponse(html, "fetch");
@@ -298,13 +287,13 @@ async function fetchSemesterList(ctx, meta) {
   }).toString();
 
   const raw = await requestTextInPage(ctx, {
-    url: `${courseUrl(SEMESTER_QUERY_URL)}?sf_request_type=ajax`,
+    url: `${SEMESTER_QUERY_URL}?sf_request_type=ajax`,
     method: "POST",
     headers: {
       ...AJAX_HEADERS,
       "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-      Origin: new URL(courseUrl(COURSE_HOME_URL)).origin,
-      Referer: courseUrl(COURSE_HOME_URL),
+      Origin: `https://${COURSE_HOST}`,
+      Referer: COURSE_HOME_URL,
     },
     body,
   }).catch(() => "");
@@ -390,13 +379,13 @@ async function requestCourseDetail(ctx, meta, week) {
 
   for (let attempt = 1; attempt <= DETAIL_RETRY_LIMIT; attempt += 1) {
     const html = await requestTextInPage(ctx, {
-      url: courseUrl(COURSE_DETAIL_URL),
+      url: COURSE_DETAIL_URL,
       method: "POST",
       headers: {
         ...AJAX_HEADERS,
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        Origin: new URL(courseUrl(COURSE_DETAIL_URL)).origin,
-        Referer: courseUrl(COURSE_DETAIL_URL),
+        Origin: "https://jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn",
+        Referer: COURSE_DETAIL_URL,
       },
       body,
     });
@@ -416,7 +405,6 @@ async function requestTextInPage(ctx, request) {
   const response = await fetch(request.url, {
     method: request.method,
     credentials: "include",
-    cache: "no-store",
     headers: request.headers,
     body: request.body || undefined,
   });
@@ -450,7 +438,6 @@ async function readCapturedCourseHome(ctx) {
 /**
  * 抓到的课表响应可能来自别的学期，请求体里带着当时用的 semester.id，
  * 与本次学期对不上的直接丢掉，免得两个学期的课混在一起。
- * 请求体里读不出 semester.id 时不作判断，保留原有的抓包兜底。
  */
 async function readCapturedCourseDetailHtml(ctx, semesterId) {
   const packets = await readCapturedPackets(ctx, COURSE_DETAIL_CAPTURE_ID);
@@ -474,6 +461,7 @@ async function readCapturedCourseDetailHtml(ctx, semesterId) {
   return readyHtml;
 }
 
+/** 请求体里读不出 semester.id 时不作判断，保留原有的抓包兜底。 */
 function matchesSemester(requestBody, semesterId) {
   const captured = firstGroupOrNull(String(requestBody || ""), /semester\.id=(\d+)/);
   return !captured || captured === String(semesterId);
@@ -742,11 +730,10 @@ function buildSchedule(input) {
   if (!meta) {
     throw new Error("未找到 EAMS 元数据");
   }
-  const parts = input.detailHtmlParts || [detailHtml];
-  const activities = parts.flatMap(part => {
-    const unitCount = Number(firstGroupOrNull(part, /(?:var|let|const)\s+unitCount\s*=\s*(\d+)\s*;/)) || 8;
-    return parseActivities(part, unitCount, meta.maxWeek, parseTeacherMap(part), parseLessonTable(part));
-  }).filter((course, index, all) => all.findIndex(other => other.id === course.id) === index);
+  const unitCount = Number(firstGroupOrNull(detailHtml, /var unitCount = (\d+);/)) || 8;
+  const teacherMap = parseTeacherMap(detailHtml);
+  const lessonInfo = parseLessonTable(detailHtml);
+  const activities = parseActivities(detailHtml, unitCount, meta.maxWeek, teacherMap, lessonInfo);
   const grouped = {};
   for (const course of activities) {
     const day = String(course.time.dayOfWeek);
@@ -790,12 +777,14 @@ function parseLessonTable(detailHtml) {
       cells.push(cell[2]);
     }
     const texts = cells.map(cellText);
-    const code = texts.indexOf("课程代码"), sequenceColumn = texts.indexOf("课程序号");
-    if (code >= 0 && sequenceColumn >= 0) {
-      columns = { code, sequence: sequenceColumn, credit: texts.indexOf("学分"), remark: texts.indexOf("备注") };
+    if (!columns) {
+      const code = texts.indexOf("课程代码");
+      const sequence = texts.indexOf("课程序号");
+      if (code >= 0 && sequence >= 0) {
+        columns = { code, sequence, credit: texts.indexOf("学分"), remark: texts.indexOf("备注") };
+      }
       continue;
     }
-    if (!columns) continue;
     const sequence = texts[columns.sequence];
     if (!/^\d+$/.test(sequence || "")) {
       continue;
@@ -825,68 +814,91 @@ function decodeHtmlEntities(value) {
 }
 
 function parseActivities(detailHtml, unitCount, maxWeek, teacherMap, lessonInfo = {}) {
-  const blockPattern = /(?:var|let|const)\s+teachers\s*=\s*\[(.*?)\]\s*;[\s\S]*?activity\s*=\s*new\s+TaskActivity\s*\((.*?)\)\s*;\s*((?:index\s*=\s*\d+\s*\*\s*unitCount\s*\+\s*\d+\s*;\s*table\d+\.activities\s*\[\s*index\s*\]\s*\[\s*table\d+\.activities\s*\[\s*index\s*\]\.length\s*\]\s*=\s*activity\s*;\s*)+)/gs;
+  const slotNodeMap = parseSlotNodeMap(detailHtml, unitCount);
+  const blockPattern = /var teachers = \[(.*?)];.*?activity = new TaskActivity\((.*?)\);\s*((?:index\s*=\s*\d+\s*\*\s*unitCount\s*\+\s*\d+\s*;\s*table\d+\.activities\[index]\[table\d+\.activities\[index]\.length]=activity;\s*)+)/gs;
   const courses = [];
-  const slotMappings = new Map();
+  let position = 0;
   for (const match of detailHtml.matchAll(blockPattern)) {
+    const teacherBlock = match[1];
+    const args = match[2];
+    const indexBlock = match[3];
     const literals = [];
-    for (const literal of match[2].matchAll(/"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'/g)) literals.push(decodeJsString(literal[1] ?? literal[2]));
-    if (literals.length < 5) throw new Error("TaskActivity 参数不足，无法解析课表");
-    const rawCourseLabel = literals[1], location = literals[3], validWeeks = literals[4];
-    const courseSequence = extractSequence(rawCourseLabel) || extractSequence(literals[0]);
-    const title = normalizeCourseTitle(rawCourseLabel);
-    const teacherNames = [...match[1].matchAll(/(?:["']name["']|name)\s*:\s*(?:"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)')/g)].map(x => decodeJsString(x[1] ?? x[2]));
-    const teacher = [...new Set(teacherNames)].join("、") || teacherMap[courseSequence] || "";
-    const sequence = courseSequence || `activity-${hash32([title, teacher, location, validWeeks].join("|"))}`;
-    const declarations = [...detailHtml.slice(0, match.index).matchAll(/(?:var|let|const)\s+unitCount\s*=\s*(\d+)\s*;/g)];
-    const blockUnits = Number(declarations[declarations.length - 1]?.[1]) || unitCount;
-    const groups = new Map();
-    for (const indexMatch of match[3].matchAll(/index\s*=\s*(\d+)\s*\*\s*unitCount\s*\+\s*(\d+)\s*;\s*table(\d+)\.activities/g)) {
-      const day = Number(indexMatch[1]) + 1, table = Number(indexMatch[3]), slot = Number(indexMatch[2]);
-      if (day < 1 || day > 7) throw new Error("课表星期索引超出范围");
-      const mappingKey = `${blockUnits}:${table}`;
-      if (!slotMappings.has(mappingKey)) slotMappings.set(mappingKey,
-        parseSlotNodeMap(detailHtml, blockUnits, table));
-      const node = resolveSlotNode(slot, blockUnits, slotMappings.get(mappingKey));
-      const key = `${table}:${day}`;
-      if (!groups.has(key)) groups.set(key, { day, nodes: new Set() });
-      groups.get(key).nodes.add(node);
+    for (const literal of args.matchAll(/"((?:\\.|[^"])*)"/g)) {
+      literals.push(decodeJsString(literal[1]));
     }
-    if (!groups.size) throw new Error("未找到课表位置索引");
-    for (const { day, nodes } of groups.values()) {
-      const ordered = [...nodes].sort((a, b) => a - b), ranges = [];
-      for (const node of ordered) {
-        const last = ranges[ranges.length - 1];
-        if (last && node === last[1] + 1) last[1] = node; else ranges.push([node, node]);
-      }
-      for (const [startNode, endNode] of ranges) courses.push({
-        id: stableCourseId(sequence, day, startNode, endNode, title, teacher, location, validWeeks),
-        title, teacher, location, weeks: parseWeeks(validWeeks, maxWeek), category: "course",
-        details: courseSequence ? [{ label: "课程序号", value: courseSequence }, ...(lessonInfo[courseSequence] || [])] : [],
-        time: { dayOfWeek: day, startNode, endNode },
+    if (literals.length < 5) {
+      throw new Error("TaskActivity 参数不足，无法解析课表");
+    }
+    const taskToken = literals[0];
+    const rawCourseLabel = literals[1];
+    const location = literals[3];
+    const validWeeks = literals[4];
+    const courseSequence = extractSequence(rawCourseLabel) || extractSequence(taskToken);
+    const sequence = courseSequence || `activity-${position}`;
+    const teacher = (firstGroupOrNull(teacherBlock, /name:"([^"]+)"/) || teacherMap[sequence] || "").trim();
+    const indices = [];
+    for (const indexMatch of indexBlock.matchAll(/index\s*=\s*(\d+)\s*\*\s*unitCount\s*\+\s*(\d+)\s*;/g)) {
+      indices.push({
+        dayIndex: Number(indexMatch[1]),
+        slotIndex: Number(indexMatch[2]),
       });
     }
+    if (indices.length === 0) {
+      throw new Error("未找到课表位置索引");
+    }
+    const dayOfWeek = indices[0].dayIndex + 1;
+    const nodes = indices
+      .map((entry) => resolveSlotNode(entry.slotIndex, unitCount, slotNodeMap))
+      .sort((a, b) => a - b);
+    const startNode = nodes[0];
+    const endNode = nodes[nodes.length - 1];
+    const title = normalizeCourseTitle(rawCourseLabel);
+    courses.push({
+      id: stableCourseId(sequence, dayOfWeek, startNode, endNode, title, teacher, location, validWeeks),
+      title,
+      teacher,
+      location,
+      weeks: parseWeeks(validWeeks, maxWeek),
+      category: "course",
+      details: courseSequence
+        ? [{ label: "课程序号", value: courseSequence }, ...(lessonInfo[courseSequence] || [])]
+        : [],
+      time: {
+        dayOfWeek,
+        startNode,
+        endNode,
+      },
+    });
+    position += 1;
   }
-  return courses.filter((course, index, all) => all.findIndex(other => other.id === course.id) === index);
+  const seen = {};
+  return courses.filter((course) => {
+    if (seen[course.id]) {
+      return false;
+    }
+    seen[course.id] = true;
+    return true;
+  });
 }
 
-function parseSlotNodeMap(detailHtml, unitCount, tableId) {
+function parseSlotNodeMap(detailHtml, unitCount) {
   const result = {};
-  let previousNode = null, remainingRows = 0;
-  for (const match of String(detailHtml).matchAll(/<tr\b[^>]*>(.*?)<\/tr>/gs)) {
-    const row = match[1], cells = [...row.matchAll(/id=["']TD(\d+)_(\d+)["']/g)].filter(x => Number(x[2]) === tableId);
-    if (!cells.length) continue;
-    const firstCell = /<td\b([^>]*)>([\s\S]*?)<\/td>/i.exec(row);
-    const label = cellText(firstCell?.[2] || "");
-    const labelKey = Object.keys(eamsSlotNodeByLabel).find(key => label === key || (label.startsWith(key) && /^[\s(（\d]/.test(label.slice(key.length))));
-    const node = labelKey ? eamsSlotNodeByLabel[labelKey] : remainingRows > 0 ? previousNode : null;
-    if (!node) continue;
-    if (labelKey) {
-      previousNode = node;
-      remainingRows = Math.max(1, Number(/rowspan=["']?(\d+)/i.exec(firstCell?.[1] || "")?.[1]) || 1);
+  const rowPattern = /<tr\b[^>]*>(.*?)<\/tr>/gs;
+  for (const match of detailHtml.matchAll(rowPattern)) {
+    const rowHtml = match[1] || "";
+    const labelMatch = /<td\b[^>]*>\s*(?:<font\b[^>]*>)?\s*([^<]+?)\s*(?:<\/font>)?\s*<\/td>/s.exec(rowHtml);
+    if (!labelMatch) {
+      continue;
     }
-    for (const cell of cells) result[Number(cell[1]) % unitCount] = node;
-    remainingRows = Math.max(0, remainingRows - 1);
+    const node = eamsSlotNodeByLabel[normalizeHtmlText(labelMatch[1])];
+    if (!node) {
+      continue;
+    }
+    const slotMatch = /id=["']TD(\d+)_\d+["']/.exec(rowHtml);
+    if (!slotMatch) {
+      continue;
+    }
+    result[Number(slotMatch[1]) % unitCount] = node;
   }
   return result;
 }

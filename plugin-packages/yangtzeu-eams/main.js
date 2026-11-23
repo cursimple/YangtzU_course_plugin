@@ -3,6 +3,12 @@ const COURSE_HOME_URL = "https://jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn/e
 const COURSE_DETAIL_URL = "https://jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn/eams/courseTableForStd!courseTable.action?sf_request_type=ajax";
 const SEMESTER_QUERY_URL = "https://jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn/eams/dataQuery.action";
 const COURSE_HOST = "jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn";
+// Trades the gateway sign-in for an EAMS session. Only valid while EAMS is signed out: with a live
+// session it answers 404, so it is used only after EAMS has shown its own sign-in page.
+const EAMS_ENTRY_URL = "https://jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn/eams/localLogin.action";
+const GATEWAY_ENTRY_KEY = "cursimple.eamsEntryAt";
+const EAMS_SSO_KEY = "cursimple.eamsSsoAt";
+const GATEWAY_ENTRY_RETRY_MS = 30000;
 const COURSE_DIRECT_HOST = "jwc3.yangtzeu.edu.cn";
 const COURSE_HOME_PATH = "/eams/courseTableForStd.action";
 const COURSE_TABLE_PATH = "/eams/courseTableForStd!courseTable.action";
@@ -53,8 +59,28 @@ export async function run(ctx) {
     };
   }
 
+  // Signed in to the gateway: go on to the academic system instead of waiting for a tap on its tile.
+  if (isGatewayHomePage(currentUrl) && claimOnce(GATEWAY_ENTRY_KEY)) {
+    openAcademicPage(COURSE_HOME_URL);
+    return {
+      status: "opening-academic-system",
+      from: currentUrl,
+      to: COURSE_HOME_URL,
+    };
+  }
+
+  // EAMS has no session yet and shows its own sign-in form: hand over the gateway sign-in instead.
+  if (isEamsLoginPage(currentUrl) && claimOnce(EAMS_SSO_KEY)) {
+    openAcademicPage(EAMS_ENTRY_URL);
+    return {
+      status: "signing-in-academic-system",
+      from: currentUrl,
+      to: EAMS_ENTRY_URL,
+    };
+  }
+
   if (isEamsHomePage(currentUrl)) {
-    globalThis.location.href = COURSE_HOME_URL;
+    openAcademicPage(COURSE_HOME_URL);
     return {
       status: "opening-course-home",
       from: currentUrl,
@@ -112,7 +138,17 @@ export async function run(ctx) {
     }
   }
 
-  return ctx.schedule.commit({ termId: schedule.termId });
+  return ctx.schedule.commit({ termId: schedule.termId, termStartDate: courseMeta.termStartDate || null });
+}
+
+function openAcademicPage(url) {
+  if (typeof document !== "undefined" && document.head) {
+    const policy = document.createElement("meta");
+    policy.name = "referrer";
+    policy.content = "no-referrer";
+    document.head.appendChild(policy);
+  }
+  globalThis.location.href = url;
 }
 
 function assertRuntime(ctx) {
@@ -178,6 +214,33 @@ function isCourseHomePage(value) {
   const s = String(value || "").toLowerCase();
   return isCourseHostUrl(s) &&
     (s.includes(COURSE_HOME_PATH.toLowerCase()) || s.includes(COURSE_TABLE_PATH.toLowerCase()));
+}
+
+/** The gateway's signed-in workbench (a single-page app that names its screen in the fragment). */
+function isGatewayHomePage(value) {
+  const url = parseUrl(value);
+  if (!url || url.hostname.toLowerCase() !== "atrust.yangtzeu.edu.cn") return false;
+  if (!url.pathname.toLowerCase().startsWith("/portal")) return false;
+  return /^#\/(?:app_center|workbench|service)\b/i.test(url.hash);
+}
+
+/** EAMS's own sign-in form (not the single sign-on hand-off). */
+function isEamsLoginPage(value) {
+  const url = parseUrl(value);
+  return !!url && isCourseHostUrl(url.href) && /^\/eams\/login\.action(?:;|$)/i.test(url.pathname);
+}
+
+/** Act once; if the hand-off lands back on the same page, wait before trying again rather than loop. */
+function claimOnce(key) {
+  try {
+    const store = globalThis.sessionStorage;
+    const last = Number(store && store.getItem(key)) || 0;
+    if (Date.now() - last < GATEWAY_ENTRY_RETRY_MS) return false;
+    if (store) store.setItem(key, String(Date.now()));
+  } catch (error) {
+    // Without storage, entering is still safer than leaving the user stuck.
+  }
+  return true;
 }
 
 function isEamsHomePage(value) {
@@ -248,7 +311,8 @@ async function resolveCourseMeta(ctx, meta) {
     }
     const probe = await probeSemester(ctx, meta, candidate);
     if (probe) {
-      return { ...meta, semesterId: candidate, maxWeek: probe.maxWeek || meta.maxWeek };
+      return { ...meta, semesterId: candidate, maxWeek: probe.maxWeek || meta.maxWeek,
+        termStartDate: meta.semesterDates[candidate] || null };
     }
   }
   return meta;
@@ -257,6 +321,9 @@ async function resolveCourseMeta(ctx, meta) {
 /** 返回按学年学期从新到旧排列的学期 id，页面当前学期始终作为兜底排在最后。 */
 async function semesterCandidates(ctx, meta) {
   const listed = await fetchSemesterList(ctx, meta);
+  // The selected semester's calendar is authoritative; never reuse a packaged date.
+  meta.semesterDates = Object.fromEntries(listed.map((item) => [item.id, item.termStartDate]));
+  meta.termStartDate = meta.semesterDates[meta.semesterId] || null;
   const ordered = listed
     .slice()
     .sort((a, b) => compareSemesterDesc(a, b))
@@ -322,9 +389,19 @@ function parseSemesterList(raw) {
       id,
       year: Number(schoolYear),
       term: Number(String(name || "").replace(/[^\d]/g, "")) || 0,
+      termStartDate: schoolCalendarDate(entry),
     });
   }
   return items;
+}
+
+function schoolCalendarDate(entry) {
+  const match = /\b(?:beginOn|startDate|termStartDate)\s*:\s*["'](20\d{2})-(\d{1,2})-(\d{1,2})["']/.exec(entry);
+  if (!match) return null;
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  if (date.getUTCFullYear() !== Number(match[1]) || date.getUTCMonth() + 1 !== Number(match[2]) ||
+      date.getUTCDate() !== Number(match[3])) return null;
+  return date.toISOString().slice(0, 10);
 }
 
 /** 取该学期第一周的课表，排了课才认为这个学期可用。 */
@@ -813,6 +890,26 @@ function decodeHtmlEntities(value) {
     .replace(/&amp;/g, "&");
 }
 
+/**
+ * 一段课实际上课的老师。`teachers` 是这门课全部任课老师，`actTeachers` 是这一段（这几周、这间教室）
+ * 的老师，教务格子里显示的就是后者。和教务页面一样，去掉只是实验助教、又不在任课名单里的人；
+ * 多位老师全部保留，用「、」连接。
+ */
+function activityTeachers(teacherBlock, actTeacherBlock) {
+  const parse = (block) => [...String(block || "").matchAll(/\{([^{}]*)\}/g)].map((entry) => ({
+    id: firstGroupOrNull(entry[1], /id:\s*"?([^",}]+)"?/),
+    name: decodeJsString(firstGroupOrNull(entry[1], /name:"((?:\\.|[^"])*)"/) || "").trim(),
+    lab: /lab:\s*true/.test(entry[1]),
+  })).filter((teacher) => teacher.name);
+  const lesson = parse(teacherBlock);
+  let act = actTeacherBlock == null ? lesson : parse(actTeacherBlock);
+  act = act.filter((teacher) => !teacher.lab ||
+    lesson.some((other) => other.id === teacher.id && other.name === teacher.name));
+  const names = [];
+  for (const teacher of act) if (!names.includes(teacher.name)) names.push(teacher.name);
+  return names.join("、");
+}
+
 function parseActivities(detailHtml, unitCount, maxWeek, teacherMap, lessonInfo = {}) {
   const slotNodeMap = parseSlotNodeMap(detailHtml, unitCount);
   const blockPattern = /var teachers = \[(.*?)];.*?activity = new TaskActivity\((.*?)\);\s*((?:index\s*=\s*\d+\s*\*\s*unitCount\s*\+\s*\d+\s*;\s*table\d+\.activities\[index]\[table\d+\.activities\[index]\.length]=activity;\s*)+)/gs;
@@ -820,6 +917,7 @@ function parseActivities(detailHtml, unitCount, maxWeek, teacherMap, lessonInfo 
   let position = 0;
   for (const match of detailHtml.matchAll(blockPattern)) {
     const teacherBlock = match[1];
+    const actTeacherBlock = firstGroupOrNull(match[0], /var actTeachers = \[(.*?)];/s);
     const args = match[2];
     const indexBlock = match[3];
     const literals = [];
@@ -831,11 +929,14 @@ function parseActivities(detailHtml, unitCount, maxWeek, teacherMap, lessonInfo 
     }
     const taskToken = literals[0];
     const rawCourseLabel = literals[1];
-    const location = literals[3];
+    const group = parseActivityGroup(args);
+    const location = group && literals[3] && !/(?:组\s*|第\s*)\d+\s*组?$/.test(literals[3])
+      ? `${literals[3]} 组${group}`
+      : literals[3];
     const validWeeks = literals[4];
     const courseSequence = extractSequence(rawCourseLabel) || extractSequence(taskToken);
     const sequence = courseSequence || `activity-${position}`;
-    const teacher = (firstGroupOrNull(teacherBlock, /name:"([^"]+)"/) || teacherMap[sequence] || "").trim();
+    const teacher = activityTeachers(teacherBlock, actTeacherBlock) || (teacherMap[sequence] || "").trim();
     const indices = [];
     for (const indexMatch of indexBlock.matchAll(/index\s*=\s*(\d+)\s*\*\s*unitCount\s*\+\s*(\d+)\s*;/g)) {
       indices.push({
@@ -860,9 +961,10 @@ function parseActivities(detailHtml, unitCount, maxWeek, teacherMap, lessonInfo 
       location,
       weeks: parseWeeks(validWeeks, maxWeek),
       category: "course",
-      details: courseSequence
-        ? [{ label: "课程序号", value: courseSequence }, ...(lessonInfo[courseSequence] || [])]
-        : [],
+      details: [
+        ...(courseSequence ? [{ label: "课程序号", value: courseSequence }, ...(lessonInfo[courseSequence] || [])] : []),
+        ...(group ? [{ label: "组别", value: group }] : []),
+      ],
       time: {
         dayOfWeek,
         startNode,
@@ -879,6 +981,42 @@ function parseActivities(detailHtml, unitCount, maxWeek, teacherMap, lessonInfo 
     seen[course.id] = true;
     return true;
   });
+}
+
+// Split constructor arguments without treating commas in strings or nested calls as separators.
+function parseActivityGroup(args) {
+  const parts = [];
+  let start = 0;
+  let depth = 0;
+  let quote = "";
+  let escaped = false;
+  for (let i = 0; i < args.length; i++) {
+    const char = args[i];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === quote) quote = "";
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if ("([{".includes(char)) {
+      depth++;
+    } else if (")]}".includes(char)) {
+      depth--;
+    } else if (char === "," && depth === 0) {
+      parts.push(args.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  parts.push(args.slice(start).trim());
+  if (parts.length < 12) return "";
+  const raw = parts[11];
+  const literal = raw.match(/^(["'])([\s\S]*)\1$/);
+  if (!literal && !/^\d+$/.test(raw)) return "";
+  const group = decodeJsString(literal ? literal[2] : raw)
+    .replace(/^(?:组别\s*[:：]?\s*|组\s*)/, "")
+    .replace(/^第\s*(.+?)\s*组$/, "$1")
+    .trim();
+  return group && group !== "0" && group.length <= 32 ? group : "";
 }
 
 function parseSlotNodeMap(detailHtml, unitCount) {

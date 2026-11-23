@@ -1,9 +1,9 @@
 {
   "id": "yangtzeu-eams-js-v1",
-  "name": "长江大学教务插件 JS v1",
+  "name": "长江大学教务",
   "publisher": "Class Schedule Viewer",
-  "version": "1.0.37",
-  "versionCode": 1037,
+  "version": "1.0.41",
+  "versionCode": 1041,
   "apiVersion": 2,
   "entry": "main.js",
   "startUrl": "https://atrust.yangtzeu.edu.cn:4443/",
@@ -13,13 +13,14 @@
     "web.navigate",
     "web.capture_packet",
     "network.fetch",
-    "schedule.write"
+    "schedule.write",
+    "storage.plugin"
   ],
   "webSession": {
-    "completionStableDelayMs": 1500,
+    "completionStableDelayMs": 600,
     "autoCompleteOnScheduleDraft": true,
-    "manualUploadHintDelayMs": 5000,
-    "retryIncompleteAfterMs": 2000
+    "manualUploadHintDelayMs": 8000,
+    "retryIncompleteAfterMs": 1200
   },
   "networkCaptures": [
     {
@@ -88,5 +89,11 @@
     "maxOutputBytes": 1048576
   },
   "dataPackVersion": "1",
-  "minHostVersion": "0.7.10"
+  "minHostVersion": "0.8.2",
+  "home": {
+    "entry": "ui/home.js",
+    "page": "ui/home.html",
+    "runUrl": "https://jwc3-yangtzeu-edu-cn-s.atrust.yangtzeu.edu.cn/eams/home.action",
+    "loginUrl": "https://atrust.yangtzeu.edu.cn:4443/"
+  }
 }

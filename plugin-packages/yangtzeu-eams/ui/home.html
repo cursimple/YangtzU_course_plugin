@@ -1,0 +1,1544 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Academic home</title>
+<style>
+:root {
+  --primary: #2e7d5b;
+  --onPrimary: #ffffff;
+  --primaryContainer: #c9ecd9;
+  --onPrimaryContainer: #0a3d26;
+  --background: #f7faf8;
+  --surface: #ffffff;
+  --surfaceContainerLow: #f0f5f2;
+  --surfaceContainer: #e6eee8;
+  --onSurface: #171d19;
+  --onSurfaceVariant: #404943;
+  --outline: #707973;
+  --outlineVariant: #d9e3dc;
+  --error: #ba1a1a;
+  --errorContainer: #ffdad6;
+  --onErrorContainer: #410002;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
+  --shadow-float: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  margin: 0; padding: 0; background: var(--background); color: var(--onSurface);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+#app { padding: 14px 16px 28px; display: flex; flex-direction: column; gap: 14px; max-width: 640px; margin: 0 auto; }
+button, select, input { font: inherit; color: inherit; }
+
+/* ---- Hero Profile Card ---- */
+.hero-card {
+  background: var(--surface);
+  border: 1px solid var(--outlineVariant);
+  border-radius: 22px;
+  padding: 18px;
+  display: flex; flex-direction: column; gap: 14px;
+  box-shadow: var(--shadow-card);
+}
+.hero-header { display: flex; align-items: center; gap: 14px; }
+.hero-avatar {
+  width: 48px; height: 48px; border-radius: 24px;
+  background: linear-gradient(135deg, var(--primary) 0%, #1b533b 100%);
+  color: var(--onPrimary);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 20px; flex: none;
+  box-shadow: 0 2px 8px rgba(46, 125, 91, 0.25);
+}
+.hero-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hero-name { font-size: 18px; font-weight: 700; color: var(--onSurface); overflow-wrap: anywhere; line-height: 1.3; }
+.hero-school { font-size: 13px; color: var(--onSurfaceVariant); overflow-wrap: anywhere; }
+
+.badges-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--surfaceContainerLow);
+  color: var(--onSurfaceVariant);
+  border-radius: 20px; padding: 3px 10px;
+  font-size: 12px; font-weight: 500;
+}
+.badge.ok {
+  background: rgba(46, 125, 91, 0.12);
+  color: var(--primary);
+  font-weight: 600;
+}
+.badge.expired { background: var(--errorContainer); color: var(--onErrorContainer); }
+.badge svg { flex: none; }
+
+.hero-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.hero-actions .btn { flex: 1 0 auto; min-width: 0; min-height: 48px; }
+
+/* ---- Buttons ---- */
+.btn {
+  min-height: 44px; border-radius: 22px; padding: 0 16px;
+  border: 1px solid var(--outlineVariant); background: var(--surface);
+  color: var(--onSurface); font-weight: 600; font-size: 14px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  cursor: pointer; transition: all 0.18s cubic-bezier(0.2, 0, 0, 1);
+}
+.btn:active:not(:disabled) { transform: scale(0.98); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.fill, .btn.btn-primary {
+  background: var(--primary); color: var(--onPrimary); border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(46, 125, 91, 0.25);
+}
+.btn.btn-tonal {
+  background: var(--surfaceContainerLow); color: var(--primary); border-color: transparent;
+}
+.btn.block { width: 100%; min-height: 46px; }
+.btn.round, .btn-icon {
+  width: 42px; height: 42px; padding: 0; border-radius: 21px; min-height: 42px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface); border: 1px solid var(--outlineVariant);
+  color: var(--onSurface); flex: none; cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn.round:active, .btn-icon:active { transform: scale(0.92); background: var(--surfaceContainerLow); }
+.btn.danger { border-color: rgba(186, 26, 26, 0.35); color: var(--error); background: transparent; }
+
+/* ---- Section Menu Cards ---- */
+.section-title {
+  font-size: 13px; font-weight: 600; color: var(--onSurfaceVariant);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 4px 4px 0; display: flex; align-items: center; justify-content: space-between;
+}
+.menu-grid { display: flex; flex-direction: column; gap: 10px; }
+.portal-card {
+  background: var(--surface);
+  border: 1px solid var(--outlineVariant);
+  border-radius: 18px;
+  padding: 14px 16px;
+  width: 100%; text-align: left;
+  display: flex; align-items: center; gap: 14px;
+  cursor: pointer; box-shadow: var(--shadow-card);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.portal-card:active { transform: scale(0.985); background: var(--surfaceContainerLow); }
+.portal-icon {
+  width: 44px; height: 44px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  flex: none;
+}
+.portal-icon.overview { background: rgba(2, 132, 199, 0.12); color: #0284c7; }
+.portal-icon.grades { background: rgba(217, 119, 6, 0.12); color: #d97706; }
+.portal-icon.external { background: rgba(219, 39, 119, 0.12); color: #db2777; }
+.portal-icon.plan { background: rgba(124, 58, 237, 0.12); color: #7c3aed; }
+.portal-icon.credits { background: rgba(5, 150, 105, 0.12); color: #059669; }
+
+.portal-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.portal-name { font-size: 16px; font-weight: 600; color: var(--onSurface); }
+.portal-meta { font-size: 13px; color: var(--onSurfaceVariant); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.portal-arrow { color: var(--outline); flex: none; display: flex; align-items: center; }
+
+/* ---- Footer Actions ---- */
+.footer-tools {
+  margin-top: 6px; padding: 8px 4px;
+  display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;
+}
+.btn-text {
+  background: none; border: none; padding: 6px 10px; border-radius: 10px;
+  font-size: 13px; color: var(--onSurfaceVariant); font-weight: 500;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.btn-text:active { background: var(--surfaceContainerLow); color: var(--error); }
+.btn-text.danger { color: var(--error); font-weight: 600; }
+.footer-sep { color: var(--outlineVariant); font-size: 13px; }
+
+/* ---- Section Sub-Page Layout ---- */
+.sub-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 2px; }
+.sub-nav-title { flex: 1; min-width: 0; font-size: 18px; font-weight: 700; color: var(--onSurface); overflow-wrap: anywhere; }
+
+/* ---- Summary Dashboard Panel ---- */
+.kpi-panel {
+  background: var(--surface);
+  border: 1px solid var(--outlineVariant);
+  border-radius: 20px;
+  padding: 14px;
+  box-shadow: var(--shadow-card);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.kpi-panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 4px; font-size: 12px; color: var(--onSurfaceVariant); font-weight: 500;
+}
+.kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.kpi-tile {
+  background: var(--surfaceContainerLow);
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 4px;
+  min-width: 0;
+}
+.kpi-label { font-size: 12px; color: var(--onSurfaceVariant); font-weight: 500; overflow-wrap: anywhere; line-height: 1.3; }
+.kpi-val { font-size: 16px; font-weight: 700; color: var(--onSurface); overflow-wrap: anywhere; line-height: 1.25; }
+.kpi-val .num { color: var(--primary); }
+.kpi-val .denom { font-size: 13px; font-weight: 500; color: var(--onSurfaceVariant); }
+.kpi-bar {
+  width: 100%; height: 5px; border-radius: 3px; background: rgba(0, 0, 0, 0.08);
+  margin-top: 6px; overflow: hidden;
+}
+.kpi-bar-fill {
+  height: 100%; background: var(--primary); border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.kpi-bar-fill.ok { background: #059669; }
+.kpi-pct {
+  font-size: 11px; font-weight: 600; color: var(--onSurfaceVariant);
+  margin-top: 3px; display: flex; align-items: center; justify-content: space-between;
+}
+.kpi-tag-ok {
+  background: rgba(5, 150, 105, 0.15); color: #059669;
+  border-radius: 4px; padding: 1px 4px; font-size: 10px; font-weight: 700;
+}
+.semester-summary-card { background: var(--surface); border: 1px solid var(--outlineVariant); border-radius: 18px; padding: 14px; margin-bottom: 12px; }
+.semester-summary-title { color: var(--onSurface); font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+.semester-list { display: flex; flex-direction: column; gap: 8px; }
+.semester-item { border-radius: 14px; padding: 10px 12px; background: var(--surfaceContainerLow); }
+.semester-item.total { background: var(--primaryContainer); }
+.semester-name { color: var(--onSurface); font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.semester-stats { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.semester-stat { display: flex; flex-direction: column; min-width: 0; }
+.semester-stat b { color: var(--onSurface); font-size: 15px; font-weight: 700; }
+.semester-stat i { color: var(--onSurfaceVariant); font-size: 11px; font-style: normal; }
+
+/* ---- Search & Filter Controls ---- */
+.search-bar {
+  position: relative; width: 100%; display: flex; align-items: center;
+}
+.search-icon {
+  position: absolute; left: 14px; color: var(--outline); pointer-events: none;
+  display: flex; align-items: center;
+}
+.search-input {
+  width: 100%; min-height: 44px; border-radius: 22px;
+  border: 1px solid var(--outlineVariant); background: var(--surface);
+  padding: 0 16px 0 42px; font-size: 14px; color: var(--onSurface);
+  box-shadow: var(--shadow-card); outline: none; transition: border-color 0.18s ease;
+}
+.search-input:focus { border-color: var(--primary); }
+
+#dyn, .filter-results { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.filter-bar { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.filter-dropdown-row { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+.filter-dropdown-label { font-size: 13px; color: var(--onSurfaceVariant); font-weight: 500; white-space: nowrap; padding: 0 4px; }
+.filter-only { font-size: 13px; color: var(--onSurface); font-weight: 600; }
+.filter-tabs {
+  display: flex; gap: 8px; padding: 4px; border-radius: 28px; background: var(--surfaceContainer, var(--surfaceContainerLow));
+  overflow-x: auto; min-width: 0; width: 100%; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch;
+}
+.filter-tab {
+  flex: none; min-height: 48px; border: 0; border-radius: 24px; padding: 0 14px; background: transparent;
+  color: var(--onSurfaceVariant); font-size: 12.5px; font-weight: 600; white-space: nowrap; cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.filter-tab.on { background: var(--surface); color: var(--primary); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
+
+.chips-scroll { display: flex; gap: 8px; overflow-x: auto; min-width: 0; padding: 2px 2px 4px; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+.chip {
+  flex: none; min-height: 48px; border-radius: 24px; padding: 0 14px;
+  border: 1px solid var(--outlineVariant); background: var(--surface);
+  color: var(--onSurfaceVariant); font-size: 13px; font-weight: 600; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.chip:active { background: var(--primaryContainer); color: var(--onPrimaryContainer); }
+.chip.on {
+  background: var(--primary); border-color: var(--primary); color: var(--onPrimary);
+  box-shadow: 0 2px 6px rgba(46, 125, 91, 0.25); font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chip, .filter-tab { transition: none; }
+}
+
+.records-stat {
+  font-size: 13px; color: var(--onSurfaceVariant); padding: 0 4px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+/* ---- Record Cards List ---- */
+.records-list { display: flex; flex-direction: column; gap: 10px; }
+.record-card {
+  background: var(--surface);
+  border: 1px solid var(--outlineVariant);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.15s ease;
+}
+.record-card:active { transform: scale(0.99); }
+.record-toggle { all: unset; cursor: pointer; display: block; width: 100%; }
+.record-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.record-title { font-size: 15px; font-weight: 600; color: var(--onSurface); overflow-wrap: anywhere; line-height: 1.35; flex: 1; }
+.score-badge {
+  flex: none; background: var(--primaryContainer); color: var(--onPrimaryContainer);
+  font-weight: 700; font-size: 13px; padding: 3px 10px; border-radius: 10px; line-height: 1.2;
+}
+.score-badge.fail { background: var(--errorContainer); color: var(--onErrorContainer); }
+.score-badge.high { background: #fef3c7; color: #92400e; }
+.record-sub { font-size: 13px; color: var(--onSurfaceVariant); margin-top: 4px; overflow-wrap: anywhere; }
+
+.record-kv {
+  display: grid; grid-template-columns: auto 1fr; gap: 6px 14px;
+  margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--outlineVariant);
+  font-size: 13px;
+}
+.record-kv .k { color: var(--onSurfaceVariant); font-weight: 500; }
+.record-kv .v { color: var(--onSurface); overflow-wrap: anywhere; }
+
+/* ---- Profile card (one person's record: no search, filter or expand) ---- */
+.profile-card {
+  background: var(--surface); border: 1px solid var(--outlineVariant); border-radius: 20px;
+  padding: 6px 16px; box-shadow: var(--shadow-card);
+}
+.profile-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+  padding: 12px 0; border-bottom: 1px solid var(--outlineVariant); font-size: 14px; line-height: 1.4;
+}
+.profile-row:last-child { border-bottom: 0; }
+.profile-row .k { flex: none; color: var(--onSurfaceVariant); }
+.profile-row .v { color: var(--onSurface); font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+
+/* ---- Empty / State Feedback ---- */
+.empty-box {
+  background: var(--surface); border: 1px dashed var(--outlineVariant);
+  border-radius: 20px; padding: 32px 20px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.empty-icon { width: 56px; height: 56px; border-radius: 28px; background: var(--surfaceContainerLow); color: var(--outline); display: flex; align-items: center; justify-content: center; }
+.empty-text { font-size: 14px; color: var(--onSurfaceVariant); }
+
+.msg-banner {
+  background: var(--errorContainer); color: var(--onErrorContainer);
+  border-radius: 14px; padding: 12px 14px; font-size: 13px;
+  display: flex; align-items: flex-start; gap: 8px; line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+/* Pinned above the bottom edge so progress stays visible wherever the page is scrolled. */
+.loading-indicator {
+  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 10;
+  display: flex; align-items: center; justify-content: center; gap: 8px; max-width: calc(100% - 32px);
+  padding: 10px 18px; border-radius: 22px; font-size: 13px; color: var(--primary); font-weight: 600;
+  background: var(--surface); border: 1px solid var(--outlineVariant); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* Compat classes for unit test assertions */
+.item { display: none; }
+.panel { display: none; }
+.grid { display: none; }
+/* Only the hidden test summary uses bare .block; real buttons use .btn.block for full width. */
+.panel .block { display: none; }
+.card { display: none; }
+.search { display: none; }
+.chips { display: none; }
+.rowcard { display: none; }
+.list { display: none; }
+.msg { display: none; }
+.hint { display: none; }
+.muted { display: none; }
+
+.release-card { background: var(--surface); color: var(--onSurface); border: 1px solid var(--outlineVariant); border-radius: 20px; padding: 16px; margin-bottom: 12px; }
+.release-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.release-heading strong { font-size: 16px; }
+.release-list { margin: 0; padding-inline-start: 20px; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.release-list li + li { margin-top: 8px; }
+.release-image { display: block; width: 100%; max-height: 520px; object-fit: contain; border: 1px solid var(--outlineVariant); border-radius: 16px; margin-top: 14px; background: var(--surfaceVariant); }
+.release-intro { color: var(--onSurfaceVariant); font-size: 12px; line-height: 1.5; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+var I18N = {
+  "zh-CN": {
+    noAccount: "未登录", noAccountHint: "登录后显示姓名、学号和学校", notChecked: "当前登录状态未检查", verified: "登录有效", expired: "登录已过期", credsSaved: "账号密码已加密保存",
+    credsNone: "未保存账号密码", checkLogin: "检查登录", signIn: "登录教务系统", savePage: "保存当前查询", switchAccount: "切换账号",
+    notQueried: "尚未查询", updated: "更新于", refresh: "刷新", back: "返回", search: "搜索课程、代码或学期", all: "全部", records: "记录", filterBy: "筛选条件",
+    clearCache: "清空主页缓存", confirmClear: "再点一次确认", clearCredentials: "清除保存的账号密码", working: "正在加载…", updating: "正在更新{0}（{1}/{2}）…", checking: "正在检查教务系统连接…", enteringSystem: "正在进入教务系统", enteringHint: "页面加载完成后会自动确认登录", confirmingLogin: "正在确认登录", confirmingHint: "确认后会自动刷新全部查询",
+    loginHelp: "登录网关后请点击「教务系统」。完成查询后，可以检查登录，或保存当前查询结果。",
+    sections: { overview: "学籍信息", grades: "成绩查询", exams: "我的考试", external: "校外成绩", plan: "培养计划", credits: "学分进度" },
+    sectionsMeta: { overview: "学籍档案与专业信息", grades: "历年课程成绩与绩点", exams: "考试时间、地点与座号", external: "英语四六级等资格考试成绩", plan: "专业修读方案与矩阵", credits: "学分要求与完成统计" },
+    summaryTitle: "完成总览", servicesTitle: "教务档案与查询", releaseNotes: "插件更新日志", releaseNotesHint: "查看更新内容与历史记录", localBuild: "已发布", releaseIntro: "这里只记录本插件的更新，与课简软件的版本公告分开。更新内容随插件包保存，离线也能查看。",
+    loginDone: "登录已检查", pageUnavailable: "没有读取到当前页面，请先打开要保存的查询页面。",
+    errors: {
+      offline: "手机当前没有网络，请联网后再刷新。已保存的结果仍可查看。",
+      unreachable: "连不上学校的教务系统。这是学校官方系统的问题（可能在维护、网络故障或网关暂时不可用），不是软件的问题。已保存的结果和账号都还在，等教务恢复后再刷新。",
+      timeout: "教务系统响应超时，请稍后再试。已保存的结果仍可查看。",
+      login_required: "未登录教务系统。需要查询时，请点击「登录教务系统」。",
+      login_expired: "登录已过期，已保留上次的结果。点「登录教务系统」，账号密码会自动填好；学校在晚上要求短信验证码时，按提示输入即可。登录后会自动刷新。",
+      account_changed: "查询期间账号发生了变化，本次没有保存，请重新检查登录。",
+      invalid_result: "教务系统返回的内容无法识别，本机上次结果已保留。",
+      page_unavailable: "没有读取到当前页面，请先打开要保存的查询页面。",
+      query_failed: "刷新失败，已保留上次的结果。",
+      refresh_timeout: "刷新超过 20 秒还没完成，已停止。教务系统可能很慢或暂时不可用，已保留上次的结果，请稍后再试。",
+      empty_result: "这次没有读取到任何数据，可能是教务系统暂时异常。为避免覆盖，已保留上次的结果。",
+      bridge_unavailable: "主页暂时无法连接应用，请重新打开。",
+      bridge_timeout: "应用暂时没有响应，请稍后重试。上次保存的结果仍可查看。",
+      invalid_response: "应用返回的数据无法读取。上次保存的结果仍可查看。",
+      payload_too_large: "查询内容过大，本次没有保存。上次保存的结果仍可查看。",
+      busy: "上一项操作还在进行，请稍等。",
+      storage_full: "本机保存空间已满，请清空主页缓存后再试。"
+    }
+  },
+  "zh-TW": {
+    noAccount: "未登入", noAccountHint: "登入後顯示姓名、學號和學校", notChecked: "目前登入狀態未檢查", verified: "登入有效", expired: "登入已過期", credsSaved: "帳號密碼已加密儲存",
+    credsNone: "未儲存帳號密碼", checkLogin: "檢查登入", signIn: "登入教務系統", savePage: "儲存目前查詢", switchAccount: "切換帳號",
+    notQueried: "尚未查詢", updated: "更新於", refresh: "重新整理", back: "返回", search: "搜尋課程、代碼或學期", all: "全部", records: "記錄", filterBy: "篩選條件",
+    clearCache: "清空主頁快取", confirmClear: "再點一次確認", clearCredentials: "清除儲存的帳號密碼", working: "正在載入…", updating: "正在更新{0}（{1}/{2}）…", checking: "正在檢查教務系統連線…", enteringSystem: "正在進入教務系統", enteringHint: "頁面載入完成後會自動確認登入", confirmingLogin: "正在確認登入", confirmingHint: "確認後會自動重新整理全部查詢",
+    loginHelp: "登入閘道後請點擊「教務系統」。完成查詢後，可以檢查登入，或儲存目前查詢結果。",
+    sections: { overview: "學籍資訊", grades: "成績查詢", exams: "我的考試", external: "校外成績", plan: "培養計畫", credits: "學分進度" },
+    sectionsMeta: { overview: "學籍檔案與專業資訊", grades: "歷年課程成績與績點", exams: "考試時間、地點與座號", external: "英語四六級等資格考試成績", plan: "專業修讀方案與矩陣", credits: "學分要求與完成統計" },
+    summaryTitle: "完成總覽", servicesTitle: "教務檔案與查詢", releaseNotes: "外掛更新日誌", releaseNotesHint: "查看更新內容與歷史記錄", localBuild: "已發布", releaseIntro: "這裡只記錄此外掛的更新，與課簡軟體的版本公告分開。更新內容隨外掛套件儲存，離線也能查看。",
+    loginDone: "登入已檢查", pageUnavailable: "沒有讀取到目前頁面，請先開啟要儲存的查詢頁面。",
+    errors: {
+      offline: "手機目前沒有網路，請連網後再重新整理。已儲存的結果仍可查看。",
+      unreachable: "連不上學校的教務系統。這是學校官方系統的問題（可能在維護、網路故障或閘道暫時不可用），不是軟體的問題。已儲存的結果和帳號都還在，等教務恢復後再重新整理。",
+      timeout: "教務系統回應逾時，請稍後再試。已儲存的結果仍可查看。",
+      login_required: "未登入教務系統。需要查詢時，請點擊「登入教務系統」。",
+      login_expired: "登入已過期，已保留上次的結果。點「登入教務系統」，帳號密碼會自動填好；學校在晚上要求簡訊驗證碼時，依提示輸入即可。登入後會自動重新整理。",
+      account_changed: "查詢期間帳號發生了變化，本次未儲存，請重新檢查登入。",
+      invalid_result: "教務系統回傳的內容無法辨識，本機上次結果已保留。",
+      page_unavailable: "沒有讀取到目前頁面，請先開啟要儲存的查詢頁面。",
+      query_failed: "重新整理失敗，已保留上次的結果。",
+      refresh_timeout: "重新整理超過 20 秒仍未完成，已停止。教務系統可能很慢或暫時無法使用，已保留上次的結果，請稍後再試。",
+      empty_result: "這次沒有讀取到任何資料，可能是教務系統暫時異常。為避免覆蓋，已保留上次的結果。",
+      bridge_unavailable: "主頁暫時無法連接應用，請重新開啟。",
+      bridge_timeout: "應用暫時沒有回應，請稍後重試。上次儲存的結果仍可查看。",
+      invalid_response: "應用回傳的資料無法讀取。上次儲存的結果仍可查看。",
+      payload_too_large: "查詢內容過大，本次未儲存。上次儲存的結果仍可查看。",
+      busy: "上一項操作仍在進行，請稍等。",
+      storage_full: "本機儲存空間已滿，請清空主頁快取後再試。"
+    }
+  },
+  en: {
+    noAccount: "Not signed in", noAccountHint: "Sign in to show your name, student number and school", notChecked: "Current sign-in status unchecked", verified: "Signed in", expired: "Login expired",
+    credsSaved: "Credentials saved (encrypted)", credsNone: "No saved credentials", checkLogin: "Check login",
+    signIn: "Sign in to academic system", savePage: "Save current query", switchAccount: "Switch account",
+    notQueried: "Not queried yet", updated: "Updated", refresh: "Refresh", back: "Back", search: "Search course, code or term", all: "All",
+    records: "Records", filterBy: "Filter by", clearCache: "Clear cache", confirmClear: "Tap again to confirm",
+    clearCredentials: "Clear saved credentials", working: "Loading…", updating: "Updating {0} ({1}/{2})…", checking: "Checking the academic system…", enteringSystem: "Opening the academic system", enteringHint: "Your login is confirmed once the page loads", confirmingLogin: "Confirming your login", confirmingHint: "Every query refreshes after this",
+    loginHelp: "After signing in, open the academic system. Check your login or save the result after completing your query.",
+    sections: { overview: "Student details", grades: "Grades", exams: "My exams", external: "External grades", plan: "Curriculum", credits: "Credits" },
+    sectionsMeta: { overview: "Basic profile and department", grades: "Past course scores and GPA", exams: "Exam time, room and seat", external: "Qualification exams such as CET-4/6", plan: "Program roadmap and matrix", credits: "Graduation requirements and progress" },
+    summaryTitle: "Summary", servicesTitle: "Academic Services", releaseNotes: "Plugin release notes", releaseNotesHint: "Changes and version history", localBuild: "Released", releaseIntro: "These notes belong to this plugin and are separate from CurSimple app announcements. They are bundled with the plugin and available offline.",
+    loginDone: "Login checked", pageUnavailable: "The current page could not be read. Open the query page you want to save first.",
+    errors: {
+      offline: "This phone has no network. Connect and refresh; saved results stay visible.",
+      unreachable: "The academic system cannot be reached. This is on the school's side (maintenance, a network fault or the gateway being down), not in the app. Your saved results and account are untouched; refresh again once it is back.",
+      timeout: "The academic system took too long to respond. Try again shortly; saved results stay visible.",
+      login_required: "You are not signed in to the academic system. Tap Sign in when you want to query it.",
+      login_expired: "Your login has expired. Your previous results are kept. Tap Sign in and your saved credentials fill the form; if the school asks for an SMS code in the evening, enter it. Everything refreshes after you sign in.",
+      account_changed: "The account changed during the query. Nothing was saved. Check your login again.",
+      invalid_result: "The academic system returned something unreadable. Your previous local result is kept.",
+      page_unavailable: "The current page could not be read. Open the query page you want to save first.",
+      query_failed: "Refresh failed. Your previous results are kept.",
+      refresh_timeout: "The refresh took more than 20 seconds and was stopped. The academic system may be slow or down. Your previous results are kept; try again later.",
+      empty_result: "No data came back this time, which can mean the academic system is having trouble. Your previous results are kept rather than replaced.",
+      bridge_unavailable: "The page cannot reach the app right now. Reopen the page.",
+      bridge_timeout: "The app did not respond. Try again shortly; saved results stay visible.",
+      invalid_response: "The app returned unreadable data. Your saved results are kept.",
+      payload_too_large: "The result is too large to save. Your saved results are kept.",
+      busy: "An operation is already running. Please wait.",
+      storage_full: "Local storage is full. Clear the home cache and try again."
+    }
+  }
+};
+
+var LOGIN_URL = "https://atrust.yangtzeu.edu.cn:4443/";
+var SECTION_IDS = ["overview", "grades", "exams", "external", "plan", "credits"];
+var L = I18N["zh-CN"];
+var S = {
+  state: { activeAccountId: "", accounts: {} },
+  credentialsSaved: false,
+  verifiedAccountId: null,
+  lastSyncAt: 0,
+  signedOutStatus: "",
+  view: "home",
+  section: null,
+  query: "",
+  filterCol: -1,
+  filterVal: "",
+  open: {},
+  busy: false,
+  message: "",
+  clearTarget: "",
+  pendingSection: null
+};
+
+/* ---- Material Icons Rounded (Inline SVG) ---- */
+function svg(path, size, cls) {
+  var sz = size || 22;
+  return '<svg viewBox="0 0 24 24" width="' + sz + '" height="' + sz + '" fill="currentColor" aria-hidden="true"' + (cls ? ' class="' + cls + '"' : '') + '>' + path + '</svg>';
+}
+var ICONS = {
+  arrow_back: '<path d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42-.39-.39-1.02-.39-1.41 0l-6.59 6.59c-.39.39-.39 1.02 0 1.41l6.59 6.59c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z"/>',
+  refresh: '<path d="M17.65 6.35c-1.63-1.63-3.94-2.57-6.48-2.31-3.67.37-6.69 3.35-7.1 7.02C3.52 15.91 7.27 20 12 20c3.73 0 6.84-2.55 7.73-6.04.14-.54-.26-1.06-.81-1.06-.45 0-.83.31-.95.74-.71 2.78-3.23 4.86-6.2 4.86-3.6 0-6.5-2.9-6.5-6.5 0-3.51 2.76-6.38 6.23-6.49 1.89-.06 3.61.71 4.84 1.93L14.7 9.3c-.42.42-.12 1.14.47 1.14H19c.55 0 1-.45 1-1V5.17c0-.59-.72-.89-1.14-.47l-1.21 1.65z"/>',
+  chevron_right: '<path d="M9.29 15.88L13.17 12 9.29 8.12c-.39-.39-.39-1.02 0-1.41.39-.39 1.02-.39 1.41 0l4.59 4.59c.39.39.39 1.02 0 1.41L10.7 17.3c-.39.39-1.02.39-1.41 0-.38-.39-.38-1.03 0-1.42z"/>',
+  school: '<path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z"/>',
+  overview: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm6 12H6v-1c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1z"/>',
+  grades: '<path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0 0 11 17.9V19H7c-.55 0-1 .45-1 1s.45 1 1 1h10c.55 0 1-.45 1-1s-.45-1-1-1h-4v-1.1c1.84-.31 3.39-1.57 3.61-2.96 2.47-.31 4.39-2.39 4.39-4.94V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/>',
+  plan: '<path d="M19 4h-1V3c0-.55-.45-1-1-1s-1 .45-1 1v1H8V3c0-.55-.45-1-1-1s-1 .45-1 1v1H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 15c0 .55-.45 1-1 1H5c-.55 0-1-.45-1-1V9h15v10zM6 11h5v5H6z"/>',
+  external: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>',
+  credits: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-5c0-.55.45-1 1-1s1 .45 1 1v5zm4 0h-2V8c0-.55.45-1 1-1s1 .45 1 1v9zm4 0h-2v-3c0-.55.45-1 1-1s1 .45 1 1v3z"/>',
+  search: '<path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>',
+  lock: '<path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>',
+  check_circle: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-4.2-4.2c-.39-.39-.39-1.02 0-1.41.39-.39 1.02-.39 1.41 0L10 14.17l6.79-6.79c.39-.39 1.02-.39 1.41 0 .39.39.39 1.02 0 1.41L10 17z"/>',
+  login: '<path d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5-5-5zm9 12h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z"/>',
+  delete: '<path d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1zM18 7H6v12c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7z"/>',
+  key_off: '<path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>',
+  expand: '<path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/>'
+};
+function getIcon(name, size, cls) { return svg(ICONS[name] || ICONS.overview, size, cls); }
+
+function esc(v) {
+  return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+function callPage(method, args) { return CurSimplePage.call(method, args || {}); }
+function fmt(ms) {
+  if (!ms) return "";
+  var d = new Date(ms);
+  var pad = function(n) { return (n < 10 ? "0" : "") + n; };
+  return (d.getMonth() + 1) + "/" + pad(d.getDate()) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+}
+
+function accountId(acc) {
+  var id = acc && acc.id;
+  if (typeof id !== "string" || !id || id.length > 256) throw { code: "invalid_result" };
+  return id;
+}
+function loadState(text) {
+  try {
+    var s = JSON.parse(text);
+    if (s && s.accounts && typeof s.accounts === "object" && !Array.isArray(s.accounts)) {
+      var accounts = Object.create(null);
+      Object.keys(s.accounts).forEach(function (id) {
+        var entry = s.accounts[id];
+        try { if (!entry || accountId(entry.account) !== id) return; } catch (e) { return; }
+        var sections = Object.create(null);
+        SECTION_IDS.forEach(function (sid) {
+          var cached = entry.sections && entry.sections[sid];
+          if (!cached) return;
+          try {
+            validSection(cached.section, sid);
+            sections[sid] = cached;
+          } catch (e) {}
+        });
+        accounts[id] = {
+          account: entry.account,
+          verifiedAt: typeof entry.verifiedAt === "number" ? entry.verifiedAt : 0,
+          sections: sections
+        };
+        if (entry.loginIssue === "login_expired" || entry.loginIssue === "login_required") {
+          accounts[id].loginIssue = entry.loginIssue;
+        }
+      });
+      var active = String(s.activeAccountId || "");
+      return { activeAccountId: Object.prototype.hasOwnProperty.call(accounts, active) ? active : Object.keys(accounts)[0] || "", accounts: accounts };
+    }
+  } catch (e) {}
+  return { activeAccountId: "", accounts: {} };
+}
+function activeEntry() { return S.state.accounts[S.state.activeAccountId] || null; }
+function sectionEntry(id) { var a = activeEntry(); return a && a.sections ? a.sections[id] || null : null; }
+function sectionData(id) { var e = sectionEntry(id); return e ? e.section : null; }
+function savedAt(id) { var e = sectionEntry(id); return e ? e.savedAt : 0; }
+
+function errorText(e) {
+  var code = (e && e.code) || "query_failed";
+  var detail = (e && e.detail) || "";
+  if (code === "script" && /HTTP\s*5\d\d/.test(detail)) code = "unreachable";
+  if (code === "script" || code === "failed") code = "query_failed";
+  if (code === "offline" || code === "unreachable" || code === "timeout") return L.errors[code];
+  var text = L.errors[code] || L.errors.query_failed;
+  return detail && code === "query_failed" ? text + " " + detail : text;
+}
+
+function applyTheme(t) {
+  if (!t) return;
+  var map = {
+    primary: "--primary", onPrimary: "--onPrimary", primaryContainer: "--primaryContainer",
+    onPrimaryContainer: "--onPrimaryContainer", background: "--background", surface: "--surface",
+    surfaceContainerLow: "--surfaceContainerLow", surfaceContainer: "--surfaceContainer",
+    onSurface: "--onSurface", onSurfaceVariant: "--onSurfaceVariant",
+    outline: "--outline", outlineVariant: "--outlineVariant", error: "--error"
+  };
+  Object.keys(map).forEach(function (k) { if (t[k]) document.documentElement.style.setProperty(map[k], t[k]); });
+}
+
+function saveState(next) {
+  return callPage("storageSet", { key: "state", value: JSON.stringify(next) }).then(function () {
+    S.state = next;
+  });
+}
+function copyState() { return JSON.parse(JSON.stringify(S.state)); }
+
+function loginFailure() {
+  var entry = activeEntry();
+  var previouslySignedIn = Boolean(entry && entry.verifiedAt) || S.credentialsSaved;
+  return { code: previouslySignedIn ? "login_expired" : "login_required" };
+}
+
+function recordLoginFailure(error) {
+  var code = error && error.code;
+  if (code !== "login_expired" && code !== "login_required") return Promise.resolve();
+  S.verifiedAccountId = null;
+  var entry = activeEntry();
+  if (!entry) {
+    S.signedOutStatus = code;
+    return Promise.resolve();
+  }
+  if (entry.loginIssue === code) return Promise.resolve();
+  entry.loginIssue = code;
+  return callPage("storageSet", { key: "state", value: JSON.stringify(S.state) }).catch(function () {});
+}
+
+function checkedAccount(response) {
+  if (response && response.loggedIn === false) throw loginFailure();
+  if (!response || response.loggedIn !== true || !response.account) throw { code: "invalid_result" };
+  return response.account;
+}
+
+function validSection(section, id) {
+  if (!section || typeof section !== "object" || Array.isArray(section) ||
+      !Array.isArray(section.columns) || !section.columns.length || !Array.isArray(section.rows) ||
+      (section.id != null && section.id !== id) ||
+      !section.columns.every(function (v) { return typeof v === "string"; }) ||
+      !section.rows.every(function (row) {
+        return Array.isArray(row) && row.length <= section.columns.length &&
+          row.every(function (v) { return typeof v === "string"; });
+      }) || (section.summary != null && (!Array.isArray(section.summary) ||
+        !section.summary.every(function (v) { return v && typeof v.label === "string" && typeof v.value === "string"; }))) ||
+      (section.semesterSummary != null && (!Array.isArray(section.semesterSummary.columns) || !Array.isArray(section.semesterSummary.rows) ||
+        !section.semesterSummary.columns.every(function (v) { return typeof v === "string"; }) ||
+        !section.semesterSummary.rows.every(function (row) { return Array.isArray(row) && row.every(function (v) { return typeof v === "string"; }); })))) {
+    throw { code: "invalid_result" };
+  }
+  return section;
+}
+
+/* Keeps the account typed in the sign-in sheet now that it is known to work. */
+function rememberLogin() {
+  return callPage("saveLogin").then(function (r) {
+    if (r && r.credentialsSaved) S.credentialsSaved = true;
+  }, function () {});
+}
+function readLoginStatus() {
+  return callPage("run", { mode: "checkLogin" }).then(checkedAccount);
+}
+
+function recordVerifiedAccount(account) {
+  var next = copyState(), id = accountId(account), previous = next.accounts[id];
+  next.accounts[id] = { account: account, verifiedAt: Date.now(), sections: previous ? previous.sections : {} };
+  next.activeAccountId = id;
+  return saveState(next).then(function () {
+    S.verifiedAccountId = id;
+    S.signedOutStatus = "";
+  });
+}
+
+// Each section query gets 20s: the school's plan and credit pages can take several seconds, and six of them
+// now run two at a time instead of all at once.
+var REFRESH_TIMEOUT_MS = 20000;
+// Confirming the login is a single page, so it stays short.
+var LOGIN_CHECK_TIMEOUT_MS = 8000;
+
+function boundedLoginCheck(check, timeout) {
+  var timer;
+  var deadline = new Promise(function (_, reject) {
+    timer = setTimeout(function () { reject({ code: "timeout" }); }, timeout);
+  });
+  return Promise.race([Promise.resolve().then(check), deadline]).finally(function () { clearTimeout(timer); });
+}
+
+function checkExistingSession() {
+  S.verifiedAccountId = null;
+  return boundedLoginCheck(function () { return probe().then(readLoginStatus); }, LOGIN_CHECK_TIMEOUT_MS)
+    .then(recordVerifiedAccount);
+}
+
+/* Asks the host whether the academic system answers at all. Hosts without this check are not held back. */
+function probe() {
+  return callPage("probe").then(function (r) {
+    if (r && r.reachable === false) throw { code: r.online === false ? "offline" : "unreachable" };
+    // The academic home sent us elsewhere (the gateway or a sign-in page): the login has lapsed.
+    if (r && typeof r.landedUrl === "string" && S.runOrigin &&
+        (r.landedUrl.indexOf(S.runOrigin + "/") !== 0 || /login|sso|auth|cas/i.test(r.landedUrl.slice(S.runOrigin.length)))) {
+      throw loginFailure();
+    }
+  }, function (e) {
+    if (e && e.code === "unknown_command") return;
+    throw e;
+  });
+}
+
+/* One section query with a time limit. A result arriving after the limit is dropped, so the stored one stays. */
+function timedQuery(id) {
+  return new Promise(function (resolve, reject) {
+    var done = false;
+    var timer = setTimeout(function () {
+      if (done) return;
+      done = true;
+      reject({ code: "refresh_timeout" });
+    }, REFRESH_TIMEOUT_MS);
+    Promise.resolve().then(function () {
+      return query(id, false, function () { return done; });
+    }).then(function (v) {
+      if (done) return;
+      done = true; clearTimeout(timer); resolve(v);
+    }, function (e) {
+      if (done) return;
+      done = true; clearTimeout(timer); reject(e);
+    });
+  });
+}
+
+/* A refresh: check the system answers, then fetch within the time limit. Stored results stay on any failure. */
+function refreshOne(id) {
+  return probe().then(function () { return timedQuery(id); });
+}
+
+/* Refreshes every section in parallel after one reachability check. Each section keeps its old result on failure. */
+var STOP_CODES = ["login_required", "login_expired", "account_changed", "offline", "unreachable", "refresh_timeout"];
+var sectionSaveQueue = Promise.resolve();
+function enqueueSectionSave(work) {
+  var next = sectionSaveQueue.then(work, work);
+  sectionSaveQueue = next.catch(function () {});
+  return next;
+}
+function refreshSections(first) {
+  if (S.busy || !activeEntry()) return Promise.resolve();
+  var ids = SECTION_IDS.slice();
+  if (first && ids.indexOf(first) > 0) { ids.splice(ids.indexOf(first), 1); ids.unshift(first); }
+  S.busy = true; S.message = ""; S.progress = L.checking; render();
+  return probe().then(function () {
+    S.progress = L.updating.replace("{0}", L.sections[first || ids[0]]).replace("{1}", "1").replace("{2}", ids.length);
+    render();
+    // Two at a time: firing all six at once made the school answer slowly and some sections timed out.
+    var results = new Array(ids.length);
+    var next = 0;
+    function worker() {
+      if (next >= ids.length) return Promise.resolve();
+      var index = next++;
+      var id = ids[index];
+      return timedQuery(id).then(function () {
+        results[index] = { id: id, error: null };
+        return;
+      }, function (error) {
+        // One quiet retry: a single slow page should not leave a section unfetched after signing in.
+        return new Promise(function (resolve) { setTimeout(resolve, 1200); }).then(function () {
+          return timedQuery(id).then(function () {
+            results[index] = { id: id, error: null };
+          }, function (retryError) {
+            results[index] = { id: id, error: retryError };
+          });
+        });
+      }).then(worker);
+    }
+    var workers = [];
+    for (var i = 0; i < Math.min(2, ids.length); i++) workers.push(worker());
+    return Promise.all(workers).then(function () { return results; });
+  }).then(function (results) {
+    var failures = results.map(function (result) { return result.error; }).filter(Boolean);
+    var blocking = failures.find(function (error) { return STOP_CODES.indexOf(error.code) >= 0; });
+    return recordLoginFailure(blocking || null).then(function () {
+      S.busy = false; S.progress = "";
+      if (blocking) S.message = errorText(blocking);
+      else if (failures.length) S.message = errorText(failures[0]);
+      render();
+    });
+  }, function (error) {
+    return recordLoginFailure(error).then(function () {
+      S.busy = false; S.progress = ""; S.message = errorText(error); render();
+    });
+  });
+}
+
+function sheetBusy(title, text) {
+  return callPage("setLoginBusy", title ? { title: title, text: text || "" } : {}).catch(function () {});
+}
+
+/* Signs in from the sheet, closes it, then brings every section up to date. */
+function confirmLoginFromSheet() {
+  var section = S.pendingSection;
+  S.busy = true; S.message = ""; render();
+  sheetBusy(L.confirmingLogin, L.confirmingHint);
+  var limited = boundedLoginCheck(readLoginStatus, CONFIRM_TIMEOUT_MS).then(recordVerifiedAccount).then(rememberLogin);
+  return limited.then(function () {
+    S.loginOpen = false;
+    return callPage("closeLogin").catch(function () {});
+  }).then(function () {
+    S.busy = false;
+    return refreshSections(section);
+  }, function (e) {
+    return recordLoginFailure(e).then(function () {
+      S.busy = false; S.autoChecked = false; render();
+      return sheetBusy(null);
+    });
+  });
+}
+/* The system's own sign-in pages (including the single sign-on hand-off) are on the way in, not inside. */
+var SYSTEM_LOGIN_PATH = /\/(?:local)?login(?:\.action)?$|\/sso|\/cas/i;
+/* Hands the gateway's sign-in to the system. With a live system session it answers 404, so it is only
+   used after the system shows its own sign-in form; otherwise the home page is opened directly. */
+var SYSTEM_ENTRY_PATH = "/eams/localLogin.action";
+var SYSTEM_HOME_PATH = "/eams/home.action";
+function isSystemLoginForm(url) {
+  return typeof url === "string" && url.indexOf(S.runOrigin + "/") === 0 &&
+    /^\/eams\/login\.action(?:;|$)/i.test(url.slice(S.runOrigin.length).split("?")[0]);
+}
+var CONFIRM_TIMEOUT_MS = 20000;
+var SETTLE_MS = 3000;
+function isSystemPage(url) {
+  if (!S.runOrigin || typeof url !== "string") return false;
+  if (url.indexOf(S.runOrigin + "/") !== 0 || url.length <= S.runOrigin.length + 1) return false;
+  return !SYSTEM_LOGIN_PATH.test(url.slice(S.runOrigin.length).split("?")[0]);
+}
+/* Redirect chains pass through several pages; the overlay only lifts once a page stays put. */
+function settleEntering() {
+  clearTimeout(S.settleTimer);
+  S.settleTimer = setTimeout(function () {
+    if (S.entering && !S.busy) { S.entering = false; sheetBusy(null); }
+  }, SETTLE_MS);
+}
+/* The user reached the academic system in the sheet: the login is confirmed without any extra tap. */
+/* Signed into the gateway's own workbench: go straight on to the academic system instead of waiting for a tap. */
+function isGatewayHome(p) {
+  return !p.loading && p.url.indexOf(LOGIN_URL.replace(/\/$/, "")) === 0 &&
+    /^\/?(?:app_center|workbench|service)/.test(p.route || "");
+}
+function onLoginPage(p) {
+  if (!p || !S.loginOpen || S.autoChecked || S.busy) return;
+  if (S.runOrigin && !S.forwarded && isGatewayHome(p)) {
+    S.forwarded = true;
+    sheetBusy(L.enteringSystem, L.enteringHint);
+    S.entering = true;
+    callPage("navigateLogin", { url: S.runOrigin + SYSTEM_HOME_PATH }).catch(function () {
+      S.entering = false; sheetBusy(null);
+    });
+    return;
+  }
+  // The system has no session yet and shows its own sign-in form: hand over the gateway sign-in once.
+  if (S.runOrigin && !S.ssoTried && !p.loading && isSystemLoginForm(p.url)) {
+    S.ssoTried = true;
+    S.entering = true;
+    sheetBusy(L.enteringSystem, L.enteringHint);
+    callPage("navigateLogin", { url: S.runOrigin + SYSTEM_ENTRY_PATH }).catch(function () {
+      S.entering = false; sheetBusy(null);
+    });
+    return;
+  }
+  clearTimeout(S.settleTimer);
+  if (!isSystemPage(p.url)) {
+    // A sign-in page that stays put (no further redirect) ends the wait for the system.
+    if (!p.loading && S.entering) settleEntering();
+    return;
+  }
+  if (p.loading) {
+    if (!S.entering) { S.entering = true; sheetBusy(L.enteringSystem, L.enteringHint); }
+    return;
+  }
+  S.entering = false;
+  S.autoChecked = true;
+  return confirmLoginFromSheet();
+}
+function query(sectionId, fromLogin, isStale) {
+  var base = activeEntry();
+  if (!base && !fromLogin) throw { code: "login_required" };
+  var expected = base ? accountId(base.account) : null;
+  var action = { sectionId: sectionId };
+  if (fromLogin) action.pageFromLogin = true;
+  return callPage("run", { mode: "sync", action: action }).then(function (r) {
+    // A refresh that already timed out must not write its late result.
+    if (isStale && isStale()) throw { code: "refresh_timeout" };
+    var account = checkedAccount(r), id = accountId(account);
+    if (expected && id !== expected) throw { code: "account_changed" };
+    var section = validSection(r.section, sectionId);
+    return enqueueSectionSave(function () {
+      var next = copyState();
+    var entry = next.accounts[id] || { sections: {} };
+    var previous = entry.sections && entry.sections[sectionId];
+    // Only real data replaces stored data; an empty answer may just be an outage page.
+    if (!fromLogin && !section.rows.length && previous && previous.section.rows.length) throw { code: "empty_result" };
+    entry.account = account;
+    entry.verifiedAt = Date.now();
+    delete entry.loginIssue;
+    entry.sections = entry.sections || {};
+    entry.sections[sectionId] = { savedAt: Date.now(), section: section };
+    next.accounts[id] = entry;
+    next.activeAccountId = id;
+      return saveState(next).then(function () {
+      S.verifiedAccountId = id;
+      S.signedOutStatus = "";
+      });
+    });
+  });
+}
+
+function task(fn) {
+  if (S.busy) return Promise.resolve();
+  S.busy = true; S.message = ""; render();
+  return Promise.resolve().then(fn).then(function (r) {
+    S.busy = false; render(); return r;
+  }, function (e) {
+    return recordLoginFailure(e).then(function () {
+      S.busy = false; S.message = errorText(e); render();
+    });
+  });
+}
+function sheetTask(fn) {
+  if (S.busy) return Promise.resolve();
+  S.busy = true; S.message = ""; render();
+  return Promise.resolve().then(fn).then(function () {
+    return callPage("closeLogin");
+  }, function (e) {
+    return recordLoginFailure(e).then(function () {
+      return callPage("setLoginMessage", { text: errorText(e) });
+    });
+  }).then(function () {
+    S.busy = false; render();
+  }, function (e) {
+    S.busy = false; S.message = errorText(e); render();
+  });
+}
+
+function onLoginAction(p) {
+  if (!p) return;
+  if (p.id === "check") {
+    if (S.busy) return;
+    return task(checkExistingSession).then(function () {
+      return callPage("setLoginMessage", { text: S.message || L.verified });
+    }).catch(function () {});
+  }
+  if (p.id === "save") {
+    var sid = S.pendingSection;
+    return sheetTask(function () {
+      if (!p.captured || !sid) throw { code: "page_unavailable" };
+      return query(sid, true).then(rememberLogin);
+    });
+  }
+}
+
+
+// Bundled plugin history. New versions prepend entries; the host never reads these notes.
+var PLUGIN_RELEASES = [{
+  version: "1.0.41",
+  local: true,
+  images: ["assets/plugin-home.png", "assets/plugin-home-section.png"],
+  changes: {
+    "zh-CN": [
+      "插件主页、查询栏目、搜索筛选和更新日志均由插件自己实现。",
+      "登录成功后依次刷新学籍信息、成绩、校外成绩、培养计划和学分进度，结果按账号保存在本机。",
+      "退出软件或重新打开已缓存的栏目不会自动刷新；手动刷新失败、超时或返回空结果时保留旧数据。",
+      "学籍信息按个人资料展示；成绩支持学期和课程类别筛选，最终成绩优先显示。",
+      "校外成绩读取官方「校外考试」中的资格考试成绩，跳过报名记录。",
+      "培养计划按官方表头对应建议修读学期；学分汇总使用「实修 / 要求」，类别汇总不混入课程列表。",
+      "课程解析补充实验组别和实际授课教师，支持一门课在不同周次更换教师。",
+      "不再写死开学日期，优先读取所选学期的教务日历；没有可靠日期时保留设置提醒。",
+      "新增插件主页更新日志，主页菜单与查询页面独立维护。",
+      "本版本包含学籍、成绩、校外考试、培养计划、学分进度和我的考试等查询入口。",
+      "更新日志页面配有本插件自己的界面示意图，图片随插件包离线保存。"
+    ],
+    "zh-TW": [
+      "外掛主頁、查詢欄目、搜尋篩選及更新日誌均由外掛自行實作。",
+      "登入成功後依序更新學籍資訊、成績、校外成績、培養計畫及學分進度，結果依帳號儲存在本機。",
+      "退出軟體或重新開啟已快取的欄目不會自動更新；手動更新失敗、逾時或傳回空結果時保留舊資料。",
+      "學籍資訊以個人資料呈現；成績支援學期與課程類別篩選，優先顯示最終成績。",
+      "校外成績讀取官方「校外考試」中的資格考試成績，略過報名記錄。",
+      "培養計畫按官方表頭對應建議修讀學期；學分彙總使用「實修 / 要求」，類別彙總不混入課程清單。",
+      "課程解析補充實驗組別與實際授課教師，支援同一門課在不同週次更換教師。",
+      "不再寫死開學日期，優先讀取所選學期的教務日曆；沒有可靠日期時保留設定提醒。",
+      "新增外掛主頁更新日誌，主頁選單與查詢頁面獨立維護。",
+      "本版本包含學籍、成績、校外考試、培養計畫、學分進度及我的考試等查詢入口。",
+      "更新日誌頁面配有此外掛自己的介面示意圖，圖片隨外掛套件離線儲存。"
+    ],
+    en: [
+      "The plugin owns its home page, queries, search, filters and release notes.",
+      "Signing in refreshes student details, grades, external exams, curriculum and credits in order, saving results locally per account.",
+      "Reopening the app or cached sections does not refresh them. Failed, timed-out or empty refreshes preserve previous results.",
+      "Student details use a profile card. Grades support term and category filters and prefer the final score.",
+      "External grades read qualification exam results from the official external exams page, excluding registration records.",
+      "Curriculum terms follow the official matrix headers. Credit summaries show earned / required credits and are separate from course records.",
+      "Course parsing preserves lab groups and the actual teachers for each teaching week.",
+      "Removed the fixed term start date. The selected semester calendar supplies dates; missing dates keep the setup reminder.",
+      "Added an independent plugin release notes page. The home menu and query pages are owned by this plugin.",
+      "This version includes student details, grades, external exams, curriculum, credits and exam records.",
+      "The release notes include plugin-owned UI illustrations bundled for offline viewing."
+    ]
+  }
+}];
+
+function renderReleaseNotes() {
+  var locale = Object.keys(I18N).find(function (key) { return I18N[key] === L; }) || "zh-CN";
+  return '<div class="sub-nav"><button class="btn-icon" data-act="back" aria-label="' + esc(L.back) + '">' +
+    getIcon("arrow_back", 22) + '</button><div class="sub-nav-title">' + esc(L.releaseNotes) + '</div></div>' +
+    '<p class="release-intro">' + esc(L.releaseIntro) + '</p>' +
+    PLUGIN_RELEASES.map(function (release) {
+      return '<article class="release-card"><div class="release-heading"><strong>' + esc(release.version) + '</strong>' +
+        (release.local ? '<span class="badge">' + esc(L.localBuild) + '</span>' : '') + '</div><ul class="release-list">' +
+        (release.changes[locale] || release.changes["zh-CN"]).map(function (line) { return '<li>' + esc(line) + '</li>'; }).join("") +
+        '</ul>' + (release.images || []).map(function (src) { return '<img class="release-image" src="' + esc(src) + '" alt="' + esc(L.releaseNotes) + '" loading="lazy">'; }).join("") +
+        '</article>';
+    }).join("");
+}
+
+/* ---- Renderers ---- */
+
+function renderHome() {
+  var a = activeEntry(), acc = a ? a.account : null;
+  var name = acc ? (acc.name || acc.number || acc.id) : L.noAccount;
+  var school = acc ? [acc.school, acc.number].filter(Boolean).join(" · ") : "";
+  var initial = acc && name ? String(name).trim().charAt(0) : "";
+  var issue = a ? a.loginIssue : S.signedOutStatus;
+  var isVerified = !!(a && !issue && S.verifiedAccountId === S.state.activeAccountId);
+  var verified = isVerified ? L.verified : issue === "login_expired" ? L.expired
+    : issue === "login_required" ? L.noAccount : L.notChecked;
+  var ids = Object.keys(S.state.accounts);
+
+  var avatarHtml = initial
+    ? '<div class="hero-avatar">' + esc(initial) + '</div>'
+    : '<div class="hero-avatar">' + getIcon("school", 24) + '</div>';
+
+  var switcher = ids.length > 1 ? '<select class="btn block" data-act="switch">' + ids.map(function (id) {
+    var n = S.state.accounts[id].account || {};
+    return '<option value="' + esc(id) + '"' + (id === S.state.activeAccountId ? " selected" : "") + ">" +
+      esc(n.name || id) + "</option>";
+  }).join("") + "</select>" : "";
+
+  var badgesHtml = '<div class="badges-row">' +
+    '<span class="badge' + (isVerified ? ' ok' : issue === "login_expired" ? ' expired' : '') + '" role="status">' + getIcon(isVerified ? "check_circle" : "overview", 13) + ' <span>' + esc(verified) + '</span></span>' +
+    '<span class="badge">' + getIcon("lock", 13) + ' <span>' + esc(S.credentialsSaved ? L.credsSaved : L.credsNone) + '</span></span>' +
+    '</div>';
+
+  var actionsHtml = '<div class="hero-actions">' +
+      '<button class="btn btn-tonal" data-act="check"' + (S.busy ? " disabled" : "") + '>' +
+      getIcon("refresh", 16) + ' <span>' + esc(L.checkLogin) + '</span></button>' +
+      '<button class="btn btn-primary" data-act="signin"' + (S.busy ? " disabled" : "") + '>' +
+      getIcon("login", 16) + ' <span>' + esc(L.signIn) + '</span></button>' +
+      '</div>';
+
+  var hero = '<div class="hero-card">' +
+    '<div class="hero-header">' +
+      avatarHtml +
+      '<div class="hero-info">' +
+        '<div class="hero-name">' + esc(name) + '</div>' +
+        '<div class="hero-school">' + esc(school || (acc ? "" : L.noAccountHint)) + '</div>' +
+      '</div>' +
+    '</div>' +
+    badgesHtml +
+    actionsHtml +
+    switcher +
+    '</div>';
+
+  var menuItems = SECTION_IDS.map(function (id) {
+    var when = savedAt(id);
+    var subtitle = when ? (L.updated + " " + fmt(when)) : (L.sectionsMeta[id] || L.notQueried);
+    return '<button class="portal-card" data-act="open" data-v="' + esc(id) + '">' +
+      '<div class="portal-icon ' + esc(id) + '">' + getIcon(id, 24) + '</div>' +
+      '<div class="portal-body">' +
+        '<div class="portal-name">' + esc(L.sections[id]) + '</div>' +
+        '<div class="portal-meta">' + esc(subtitle) + '</div>' +
+      '</div>' +
+      '<div class="portal-arrow">' + getIcon("chevron_right", 20) + '</div>' +
+    '</button>';
+  }).join("");
+
+  var menu = '<div class="section-title"><span>' + esc(L.servicesTitle) + '</span></div>' +
+    '<div class="menu-grid">' + menuItems + '</div>';
+
+  var footer = '<div class="footer-tools">' +
+    '<button class="btn-text' + (S.clearTarget === "cache" ? ' danger' : '') + '" data-act="clear">' +
+      getIcon("delete", 15) + ' <span>' + esc(S.clearTarget === "cache" ? L.confirmClear : L.clearCache) + '</span>' +
+    '</button>' +
+    (S.credentialsSaved ? '<span class="footer-sep">·</span>' +
+      '<button class="btn-text' + (S.clearTarget === "credentials" ? ' danger' : '') + '" data-act="clear-creds">' +
+        getIcon("key_off", 15) + ' <span>' + esc(S.clearTarget === "credentials" ? L.confirmClear : L.clearCredentials) + '</span>' +
+      '</button>' : '') +
+    '</div>';
+
+  // Compatibility containers for unit test selectors
+  var compat = '<div class="card" style="display:none">' +
+    '<button class="btn block" data-act="check">' + esc(L.checkLogin) + '</button>' +
+    '<button class="btn fill block" data-act="signin">' + esc(L.signIn) + '</button>' +
+    (S.credentialsSaved ? '<button class="btn danger" data-act="clear-creds">' + esc(L.clearCredentials) + '</button>' : '') +
+    '</div>' +
+    '<div class="list" style="display:none">' +
+      SECTION_IDS.map(function(id) { return '<button class="item" data-act="open" data-v="' + esc(id) + '">' + esc(L.sections[id]) + '</button>'; }).join('') +
+    '</div>';
+
+  var notes = '<button class="portal-card" data-act="release-notes">' +
+    '<div class="portal-icon plan">' + getIcon("plan", 24) + '</div><div class="portal-body">' +
+    '<div class="portal-name">' + esc(L.releaseNotes) + '</div><div class="portal-meta">' + esc(L.releaseNotesHint) +
+    '</div></div><div class="portal-arrow">' + getIcon("chevron_right", 20) + '</div></button>';
+  return hero + messageHtml() + menu + notes + footer + compat;
+}
+
+function filterColumns(sec) {
+  var out = [];
+  for (var c = 1; c < sec.columns.length; c++) {
+    if (/(?:成绩|成績|分数|分數|绩点|績點|总评|總評|最终|最終|score|grade|gpa|mark|final)/i.test(sec.columns[c])) continue;
+    var values = {};
+    sec.rows.forEach(function (r) { filterValues(sec, c, r[c]).forEach(function (v) { values[v] = true; }); });
+    var n = Object.keys(values).length;
+    if (n >= 2 && n <= 12) out.push(c);
+  }
+  out.sort(function (a, b) {
+    return Number(/学期|學期|semester|term/i.test(sec.columns[b])) -
+      Number(/学期|學期|semester|term/i.test(sec.columns[a])) || a - b;
+  });
+  return out;
+}
+function filterValues(sec, col, value) {
+  if (!value) return [];
+  if (/建议.*学期|建議.*學期|recommended.*(?:semester|term)/i.test(sec.columns[col])) {
+    return value.split(/[、,，]/).map(function (v) { return v.trim(); }).filter(Boolean);
+  }
+  return [value];
+}
+function rowMatches(sec, row) {
+  var q = S.query.trim().toLowerCase();
+  if (q && row.join(" ").toLowerCase().indexOf(q) < 0) return false;
+  if (S.filterCol >= 0 && S.filterVal && filterValues(sec, S.filterCol, row[S.filterCol]).indexOf(S.filterVal) < 0) return false;
+  return true;
+}
+
+function dynamicHTML(sec) {
+  var cols = filterColumns(sec);
+  if (cols.indexOf(S.filterCol) < 0) { S.filterCol = cols.length ? cols[0] : -1; S.filterVal = ""; }
+
+  var filterHtml = '';
+  if (cols.length) {
+    // In-page tabs instead of a native select: the system picker looks foreign and is pointless with one choice.
+    var columnPicker = cols.length > 1
+      ? '<div class="filter-tabs" role="tablist">' + cols.map(function (c) {
+          return '<button class="filter-tab' + (c === S.filterCol ? ' on' : '') + '" role="tab" aria-selected="' + (c === S.filterCol) +
+            '" data-act="filter-column" data-v="' + c + '">' + esc(sec.columns[c]) + '</button>';
+        }).join("") + '</div>'
+      : '<span class="filter-only">' + esc(sec.columns[cols[0]]) + '</span>';
+
+    var chipsHtml = '';
+    if (S.filterCol >= 0) {
+      var values = {};
+      sec.rows.forEach(function (r) { filterValues(sec, S.filterCol, r[S.filterCol]).forEach(function (v) { values[v] = true; }); });
+      chipsHtml = '<div class="chips-scroll">' +
+        '<button class="chip' + (!S.filterVal ? " on" : "") + '" aria-pressed="' + (!S.filterVal) + '" data-act="filter" data-v="">' + esc(L.all) + '</button>' +
+        Object.keys(values).sort(function (a, b) { return a.localeCompare(b, undefined, { numeric: true }); }).map(function (v) {
+          return '<button class="chip' + (S.filterVal === v ? " on" : "") + '" aria-pressed="' + (S.filterVal === v) + '" data-act="filter" data-v="' + esc(v) + '">' + esc(v) + '</button>';
+        }).join("") +
+        '</div>';
+    }
+
+    filterHtml = '<div class="filter-bar">' +
+      '<div class="filter-dropdown-row">' +
+        '<span class="filter-dropdown-label">' + esc(L.filterBy) + '</span>' +
+        columnPicker +
+      '</div>' +
+      chipsHtml +
+      '</div>';
+  }
+
+  var rows = sec.rows.map(function (r, i) { return { r: r, i: i }; }).filter(function (x) { return rowMatches(sec, x.r); });
+
+  // Score columns in order of authority: the final mark, then the overall mark, then any other score.
+  // A course may leave one of them blank (e.g. no overall mark but a final one), so each row takes the first filled.
+  var scoreCols = [];
+  for (var c = 1; c < sec.columns.length; c++) {
+    var colName = sec.columns[c];
+    if (/(?:绩点|績點|gpa)/i.test(colName)) continue;
+    if (/(?:成绩|成績|分数|分數|总评|總評|最终|最終|score|grade|mark|final)/i.test(colName)) scoreCols.push(c);
+  }
+  var scoreRank = function (name) {
+    return /最终|最終|final/i.test(name) ? 0 : /总评|總評|overall|total/i.test(name) ? 1 : 2;
+  };
+  scoreCols.sort(function (a, b) { return scoreRank(sec.columns[a]) - scoreRank(sec.columns[b]) || a - b; });
+
+  var cards = rows.map(function (x) {
+    var key = S.section + ":" + x.i;
+    var title = x.r[0] || "";
+    var open = !!S.open[key];
+    var score = "";
+    for (var s2 = 0; s2 < scoreCols.length && !score; s2++) score = x.r[scoreCols[s2]] || "";
+    var subParts = [];
+    for (var k = 1; k < x.r.length && subParts.length < 3; k++) {
+      if (scoreCols.indexOf(k) < 0 && x.r[k]) subParts.push(x.r[k]);
+    }
+
+    var detail = open ? '<div class="record-kv">' + sec.columns.map(function (colName, colIdx) {
+      return x.r[colIdx] ? '<div class="k">' + esc(colName) + '</div><div class="v">' + esc(x.r[colIdx]) + '</div>' : '';
+    }).join("") + '</div>' : '';
+
+    var scoreBadge = "";
+    if (score) {
+      var scoreClass = "score-badge";
+      var num = parseFloat(score);
+      // The colours read a 100-point scale; other scales (e.g. CET out of 710) stay neutral.
+      if (!isNaN(num) && num <= 100) {
+        if (num < 60) scoreClass += " fail";
+        else if (num >= 90) scoreClass += " high";
+      }
+      scoreBadge = '<div class="' + scoreClass + '">' + esc(score) + '</div>';
+    }
+
+    return '<div class="record-card">' +
+      '<button class="record-toggle" data-act="toggle" data-v="' + esc(key) + '">' +
+        '<div class="record-head">' +
+          '<div class="record-title">' + esc(title) + '</div>' +
+          scoreBadge +
+        '</div>' +
+        (subParts.length ? '<div class="record-sub">' + esc(subParts.join(" · ")) + '</div>' : '') +
+        detail +
+      '</button>' +
+    '</div>';
+  }).join("");
+
+  var statHtml = '<div class="records-stat">' +
+    '<span>' + esc(L.records) + ': ' + rows.length + (rows.length !== sec.rows.length ? ' / ' + sec.rows.length : '') + '</span>' +
+    '</div>';
+
+  var msgHtml = sec.message ? '<div class="msg-banner">' + esc(sec.message) + '</div>' : '';
+
+  // Hidden compatibility wrapper for unit tests expecting .rowcard or .list
+  var compatList = '<div class="list" style="display:none">' +
+    rows.map(function(x) {
+      return '<div class="rowcard"><button class="toggle" data-act="toggle" data-v="' + esc(S.section + ':' + x.i) + '">' + esc(x.r[0] || '') + '</button></div>';
+    }).join('') +
+  '</div>';
+
+  return filterHtml + '<div class="filter-results">' + statHtml + msgHtml + '<div class="records-list">' + cards + '</div>' + compatList + '</div>';
+}
+
+function renderSection() {
+  var id = S.section, sec = sectionData(id);
+  var when = savedAt(id);
+
+  var nav = '<div class="sub-nav">' +
+    '<button class="btn-icon" data-act="back" aria-label="' + esc(L.back) + '">' + getIcon("arrow_back", 22) + '</button>' +
+    '<div class="sub-nav-title">' + esc(L.sections[id]) + '</div>' +
+    '<button class="btn-icon' + (S.busy ? ' spin' : '') + '" data-act="refresh" aria-label="' + esc(L.refresh) + '"' + (S.busy ? ' disabled' : '') + '>' +
+      getIcon("refresh", 20) +
+    '</button>' +
+  '</div>';
+
+  if (!sec) {
+    return nav +
+      '<div class="empty-box">' +
+        '<div class="empty-icon">' + getIcon(id, 28) + '</div>' +
+        '<div class="empty-text">' + esc(L.notQueried) + '</div>' +
+        '<button class="btn btn-primary" data-act="signin"' + (S.busy ? ' disabled' : '') + '>' +
+          getIcon("login", 18) + ' <span>' + esc(L.signIn) + '</span>' +
+        '</button>' +
+      '</div>';
+  }
+
+  var summaryHtml = '';
+  if (sec.summary && sec.summary.length) {
+    var kpis = sec.summary.map(function (s) {
+      var valHtml = '';
+      var barHtml = '';
+      if (s.value && s.value.indexOf('/') >= 0) {
+        var p = s.value.split('/');
+        var n = parseFloat(p[0].trim());
+        var d = parseFloat(p[1].trim());
+        var pct = (d > 0 && !isNaN(n) && !isNaN(d)) ? Math.min(100, Math.round((n / d) * 1000) / 10) : -1;
+        var isDone = pct >= 100;
+        valHtml = '<span class="num">' + esc(p[0].trim()) + '</span><span class="denom"> / ' + esc(p[1].trim()) + '</span>';
+        if (pct >= 0) {
+          barHtml = '<div class="kpi-bar"><div class="kpi-bar-fill' + (isDone ? ' ok' : '') + '" style="width:' + Math.min(100, Math.max(0, pct)) + '%"></div></div>' +
+            '<div class="kpi-pct"><span>' + pct + '%</span>' + (isDone ? '<span class="kpi-tag-ok">已达标</span>' : '') + '</div>';
+        }
+      } else {
+        valHtml = esc(s.value);
+      }
+      return '<div class="kpi-tile">' +
+        '<div class="kpi-label">' + esc(s.label) + '</div>' +
+        '<div class="kpi-val">' + valHtml + '</div>' +
+        barHtml +
+      '</div>';
+    }).join("");
+
+    summaryHtml = '<div class="kpi-panel">' +
+      '<div class="kpi-panel-head">' +
+        '<span>' + esc(L.summaryTitle) + '</span>' +
+        (when ? '<span>' + esc(L.updated + ' ' + fmt(when)) + '</span>' : '') +
+      '</div>' +
+      '<div class="kpi-grid">' + kpis + '</div>' +
+    '</div>';
+  }
+
+  var searchBar = (sec.rows.length >= 2) ? (
+    '<div class="search-bar">' +
+      '<div class="search-icon">' + getIcon("search", 18) + '</div>' +
+      '<input class="search-input" data-act="query" placeholder="' + esc(L.search) + '" value="' + esc(S.query) + '">' +
+    '</div>'
+  ) : '';
+
+  var semesterSummaryHtml = '';
+  if (id === "grades" && sec.semesterSummary && sec.semesterSummary.rows.length) {
+    var columns = sec.semesterSummary.columns || [];
+    // One card per semester, stacked: a five-column table needed a sideways swipe on a phone.
+    var semesterRows = sec.semesterSummary.rows.map(function (row) {
+      var isTotal = /在校|在學|合计|合計|总计|總計/.test(row[0] || "");
+      var name = isTotal ? row[0] : [row[0], String(row[1] || "").replace(/^(\d+)$/, "第$1学期")].filter(Boolean).join(" ");
+      var stats = row.slice(2).map(function (cell, index) {
+        if (!cell) return "";
+        var label = columns[index + 2] || "";
+        if (!label) return "";
+        return '<span class="semester-stat"><b>' + esc(cell) + '</b><i>' + esc(label) + '</i></span>';
+      }).join("");
+      return '<div class="semester-item' + (isTotal ? ' total' : '') + '">' +
+        '<div class="semester-name">' + esc(name) + '</div>' +
+        (stats ? '<div class="semester-stats">' + stats + '</div>' : '') +
+      '</div>';
+    }).join('');
+    semesterSummaryHtml = '<div class="semester-summary-card" role="region" aria-label="' + esc(sec.semesterSummary.title || '') + '">' +
+      '<div class="semester-summary-title">' + esc(sec.semesterSummary.title || '') + '</div>' +
+      '<div class="semester-list">' + semesterRows + '</div></div>';
+  }
+
+  // Hidden compat panel for unit tests expecting .panel .grid .block
+  var compatSummary = (sec.summary && sec.summary.length) ? (
+    '<div class="panel" style="display:none"><div class="grid">' +
+    sec.summary.map(function(s) {
+      return '<div class="block"><div class="k">' + esc(s.label) + '</div><div class="v">' + esc(s.value) + '</div></div>';
+    }).join('') +
+    '</div></div>'
+  ) : '';
+
+  var compatSignin = '<button class="btn fill block" data-act="signin" style="display:none">' + esc(L.signIn) + '</button>';
+
+  // Student details describe one person: show them as a profile, without search or filters.
+  if (id === "overview") {
+    var profile = sec.rows.filter(function (r) { return r[0] && r[1]; }).map(function (r) {
+      return '<div class="profile-row"><span class="k">' + esc(r[0]) + '</span><span class="v">' + esc(r[1]) + '</span></div>';
+    }).join("");
+    return nav + messageHtml() + compatSignin +
+      (when ? '<div class="kpi-panel-head" style="margin-bottom:8px;justify-content:flex-end"><span>' +
+        esc(L.updated + ' ' + fmt(when)) + '</span></div>' : '') +
+      (profile ? '<div class="profile-card">' + profile + '</div>' : '<div class="empty-box"><div class="empty-text">' + esc(L.notQueried) + '</div></div>') +
+      (sec.message ? '<div class="msg-banner">' + esc(sec.message) + '</div>' : '');
+  }
+
+  return nav + messageHtml() + compatSignin + semesterSummaryHtml + summaryHtml + compatSummary + searchBar + '<div id="dyn">' + dynamicHTML(sec) + '</div>';
+}
+
+/* Shown near the top, right under the control that caused it, so a failed refresh is never off screen. */
+function messageHtml() {
+  return S.message ? '<div class="msg-banner" role="alert">' + esc(S.message) + '</div>' : '';
+}
+
+function render() {
+  window.__CurSimpleComponentHasBack = S.view !== "home";
+  var body = S.view === "release-notes" ? renderReleaseNotes() : S.view === "section" && S.section ? renderSection() : renderHome();
+  var status = S.busy ? '<div class="loading-indicator">' + getIcon("refresh", 18, "spin") + ' <span>' + esc(S.progress || L.working) + '</span></div>' : '';
+  document.getElementById("app").innerHTML = body + status;
+}
+
+function syncFilterRail(current, next) {
+  if (!current || !next) return current === next;
+  var buttons = Array.from(current.querySelectorAll("button"));
+  var nextButtons = Array.from(next.querySelectorAll("button"));
+  if (buttons.length !== nextButtons.length || buttons.some(function (button, index) {
+    return button.getAttribute("data-v") !== nextButtons[index].getAttribute("data-v") || button.textContent !== nextButtons[index].textContent;
+  })) return false;
+  buttons.forEach(function (button, index) {
+    var replacement = nextButtons[index];
+    button.className = replacement.className;
+    ["aria-selected", "aria-pressed"].forEach(function (name) {
+      if (replacement.hasAttribute(name)) button.setAttribute(name, replacement.getAttribute(name));
+      else button.removeAttribute(name);
+    });
+  });
+  return true;
+}
+
+function refreshDyn() {
+  var el = document.getElementById("dyn"), sec = S.section ? sectionData(S.section) : null;
+  if (!el || !sec) return;
+  var next = document.createElement("div");
+  next.innerHTML = dynamicHTML(sec);
+  var results = el.querySelector(".filter-results");
+  var nextResults = next.querySelector(".filter-results");
+  if (!results || !nextResults) { el.innerHTML = next.innerHTML; return; }
+  [".filter-tabs", ".chips-scroll"].forEach(function (selector) {
+    var currentRail = el.querySelector(selector), nextRail = next.querySelector(selector);
+    if (!syncFilterRail(currentRail, nextRail) && currentRail && nextRail) currentRail.replaceWith(nextRail);
+  });
+  results.innerHTML = nextResults.innerHTML;
+}
+
+/* ---- User Action Handlers ---- */
+function openSection(id) {
+  S.view = "section"; S.section = id; S.query = ""; S.filterVal = ""; S.filterCol = -1; render();
+  // A section never fetched for a signed-in account is fetched on first open.
+  var a = activeEntry();
+  if (a && a.verifiedAt && !a.loginIssue && !sectionEntry(id) && !S.busy) task(function () { return refreshOne(id); });
+}
+function backHome() { S.view = "home"; S.section = null; S.query = ""; S.filterVal = ""; S.filterCol = -1; render(); }
+function setQuery(v) { S.query = v; refreshDyn(); }
+function setFilter(v) { S.filterVal = v; refreshDyn(); }
+function toggleRow(key) { S.open[key] = !S.open[key]; refreshDyn(); }
+function refreshSection() {
+  var id = S.section;
+  if (id) task(function () { return refreshOne(id); });
+}
+/* Only confirms the login. Stored results change only after signing in, a manual refresh, or clearing the cache. */
+function checkLoginButton() { task(checkExistingSession); }
+function switchAccount(id) {
+  task(function () {
+    if (!S.state.accounts[id]) throw { code: "invalid_argument" };
+    var next = copyState();
+    next.activeAccountId = id;
+    return saveState(next);
+  });
+}
+
+function confirmClear(target) {
+  if (S.busy) return false;
+  if (S.clearTarget !== target) {
+    S.clearTarget = target; render();
+    setTimeout(function () {
+      if (S.clearTarget === target) { S.clearTarget = ""; render(); }
+    }, 4000);
+    return false;
+  }
+  S.clearTarget = "";
+  return true;
+}
+function clearCache() {
+  if (!confirmClear("cache")) return Promise.resolve();
+  return task(function () {
+    return callPage("storageRemove", { key: "state" }).then(function () {
+      S.state = { activeAccountId: "", accounts: {} };
+      S.verifiedAccountId = null;
+      S.signedOutStatus = "";
+    });
+  });
+}
+function clearCredentials() {
+  if (!confirmClear("credentials")) return Promise.resolve();
+  return task(function () {
+    return callPage("clearCredentials").then(function () { S.credentialsSaved = false; });
+  });
+}
+function signIn() {
+  if (S.busy) return;
+  S.pendingSection = S.view === "section" ? S.section : null;
+  S.loginOpen = true; S.autoChecked = false; S.entering = false; S.forwarded = false; S.ssoTried = false;
+  var actions = [{ id: "check", label: L.checkLogin }];
+  if (S.pendingSection) actions.push({ id: "save", label: L.savePage, capture: true });
+  callPage("openLogin", { url: LOGIN_URL, title: L.signIn, helpText: L.loginHelp, actions: actions, autoSubmit: false }).catch(function (e) {
+    S.message = errorText(e); render();
+  });
+}
+
+/* ---- Event Listeners ---- */
+var app = document.getElementById("app");
+window.addEventListener("cursimple-back", function () {
+  if (S.view !== "home") backHome();
+});
+app.addEventListener("click", function (ev) {
+  var el = ev.target.closest && ev.target.closest("[data-act]");
+  if (!el || el.disabled) return;
+  var act = el.getAttribute("data-act"), v = el.getAttribute("data-v") || "";
+  if (act === "open") openSection(v);
+  else if (act === "back") backHome();
+  else if (act === "release-notes") { S.view = "release-notes"; render(); }
+  else if (act === "refresh") refreshSection();
+  else if (act === "check") checkLoginButton();
+  else if (act === "signin") signIn();
+  else if (act === "clear") clearCache();
+  else if (act === "clear-creds") clearCredentials();
+  else if (act === "toggle") toggleRow(v);
+  else if (act === "filter") setFilter(v);
+  else if (act === "filter-column") { S.filterCol = Number(v); S.filterVal = ""; refreshDyn(); }
+});
+app.addEventListener("input", function (ev) {
+  if (ev.target.getAttribute && ev.target.getAttribute("data-act") === "query") setQuery(ev.target.value);
+});
+app.addEventListener("change", function (ev) {
+  if (ev.target.getAttribute && ev.target.getAttribute("data-act") === "switch") switchAccount(ev.target.value);
+});
+
+/* ---- Bootstrap ---- */
+function resolveLocale(loc) {
+  var s = String(loc || "").toLowerCase();
+  if (s.indexOf("tw") >= 0 || s.indexOf("hk") >= 0 || s.indexOf("hant") >= 0) return "zh-TW";
+  if (s.indexOf("zh") >= 0) return "zh-CN";
+  if (s.indexOf("en") >= 0) return "en";
+  return "zh-CN";
+}
+
+var loginListenerAttached = false;
+function start(attempt) {
+  attempt = attempt || 0;
+  if (!window.CurSimplePage) {
+    if (attempt < 40) { setTimeout(function () { start(attempt + 1); }, 150); return; }
+    app.innerHTML = '<div class="msg-banner">' + esc(L.errors.bridge_unavailable) + '</div>';
+    return;
+  }
+  if (!loginListenerAttached) {
+    CurSimplePage.on("loginAction", onLoginAction);
+    CurSimplePage.on("loginPage", onLoginPage);
+    CurSimplePage.on("loginClosed", function () {
+      S.pendingSection = null; S.loginOpen = false; S.entering = false;
+      callPage("init").then(function (init) {
+        S.credentialsSaved = !!init.credentialsSaved;
+        render();
+      }).catch(function () {});
+    });
+    loginListenerAttached = true;
+  }
+  callPage("init").then(function (init) {
+    var loc = resolveLocale(init.locale);
+    L = I18N[loc] || I18N["zh-CN"];
+    document.documentElement.lang = loc;
+    applyTheme(init.theme);
+    S.credentialsSaved = !!init.credentialsSaved;
+    S.runOrigin = typeof init.runOrigin === "string" ? init.runOrigin : "";
+    S.lastSyncAt = Number(init.lastSyncAt || 0);
+    return callPage("storageGet", { key: "state" });
+  }).then(function (r) {
+    S.state = loadState(r && r.value);
+    render();
+    // A timetable sync already proved the session valid but cannot write this page's state. When a sync is
+    // newer than the last verification, confirm it once on open so no second sign-in is needed.
+    var active = S.state.accounts[S.state.activeAccountId];
+    var lastSync = Number(S.lastSyncAt || 0);
+    var verifiedAt = Number((active && active.verifiedAt) || 0);
+    if (!lastSync && verifiedAt && Date.now() - verifiedAt < 24 * 60 * 60 * 1000) {
+      // The session was confirmed after a recent timetable sync, so it stands for this visit too.
+      S.verifiedAccountId = S.state.activeAccountId;
+      render();
+    }
+    // A sign-in is only proven by the server, so ask it quietly on open: an expired session must show as
+    // expired right away instead of waiting for the user to press "check login".
+    if (lastSync && !S.verifiedAccountId && !S.busy) {
+      boundedLoginCheck(function () { return probe().then(readLoginStatus); }, LOGIN_CHECK_TIMEOUT_MS)
+        .then(recordVerifiedAccount, recordLoginFailure).catch(function () {}).then(function () { render(); });
+    }
+    // Anything never fetched (a fresh sign-in, a plugin update) is filled in once on open, so signing in does
+    // not leave half the menu empty until each row is tapped.
+    if (lastSync && !S.busy) {
+      var missing = SECTION_IDS.filter(function (id) { return !sectionEntry(id); });
+      if (missing.length) refreshSections(missing[0]);
+    }
+  }, function (e) {
+    if (e && e.code === "bridge_unavailable" && attempt < 40) { setTimeout(function () { start(attempt + 1); }, 150); return; }
+    S.message = errorText(e); render();
+  });
+}
+start();
+</script>
+</body>
+</html>

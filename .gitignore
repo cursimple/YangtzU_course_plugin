@@ -3,3 +3,4 @@ dist/
 
 # Local planning notes.
 /docs/
+node_modules/

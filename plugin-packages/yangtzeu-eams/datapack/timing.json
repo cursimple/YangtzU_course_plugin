@@ -1,5 +1,5 @@
 {
-  "termStartDate": "2026-02-23",
+  "termStartDate": "",
   "timezone": "Asia/Shanghai",
   "slotTimes": [
     { "startNode": 1, "endNode": 1, "startTime": "08:00", "endTime": "09:35", "label": "第一节" },

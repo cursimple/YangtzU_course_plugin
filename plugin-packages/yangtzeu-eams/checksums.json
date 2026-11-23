@@ -1,9 +1,15 @@
 {
   "algorithm": "SHA-256",
   "files": {
-    "main.js": "798865716914a13aa88436ada1414ae317043b5699ed7907004a5b765e7be1a3",
-    "manifest.json": "662975c66edd8b04e4841196caa4fd7251965a2f2ac71e8da87f2380a89b22ee",
-    "datapack/timing.json": "31123da9995c39b54f6c517c9cf647c3902aaa7a7fc9753700e3c6c2ffd10bdf",
+    "assets/.gitkeep": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "assets/plugin-home-section.png": "1215119d26822b36d28c34d9c931969c5115d52f794fecbd86214b1eb890f331",
+    "assets/plugin-home.png": "1596d76395e10ca6a43ab0677a4429c69dc1433284a1beb3269523580921906a",
+    "datapack/timing.json": "6d13ffb9a7464327ad2bea49aec0a43e5290965223780996533ae7b999925269",
+    "main.js": "0387ae7e6ceb7068d686f428dba97c3d0663188433075a3b5d2732dd788f0df3",
+    "manifest.json": "cc6234e4108e30e09cfadc44fc63fc56ac61241b7be1d36eb9acf9cd75ddb0d9",
+    "models/.gitkeep": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "ui/home.html": "94d5080a0f82e11cf1505fad6b86b84f4dc3f4d5d725e7b809291df557e217ca",
+    "ui/home.js": "c14e277ba60c21d475a14edbaba2043ead6f92abf7fb12dfa9586b6dec94e82a",
     "ui/schedule.json": "ece8ad50a510a31fc8f5b44c4aa3490b13adca43244c80c3f083e5f4d6a953d7"
   }
 }

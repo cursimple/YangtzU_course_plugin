@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.0.32-blue)
+![Version](https://img.shields.io/badge/version-1.0.41-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Android-lightgrey)
 
@@ -21,6 +21,8 @@
 - 📅 **Complete Schedule** - Retrieve all semester course data
 - ⏰ **Precise Timing** - Include time slots, locations, and teacher info
 - 🎯 **Smart Parsing** - Auto-detect course details and weekly arrangements
+- 🏫 **Plugin Home** - Query student details, grades, curriculum, and credit progress
+- 💾 **Offline Results** - Encrypted, account-scoped snapshots; only explicit queries and refreshes connect
 
 ## 📋 Prerequisites
 
@@ -47,6 +49,19 @@ Once logged in, the plugin will automatically:
 - Generate and commit schedule draft
 
 ## 📖 Usage Guide
+
+### Plugin Home
+
+Open **Plugin home** above **Plugin settings** on the installed plugin card.
+
+- Sign in through the gateway and academic system, then check the login status.
+- Student details, grades, curriculum, and credit progress each retain their last successful result and timestamp.
+- If an automatic query cannot read the complete result, open the academic page, select the query filters, and use **Save current query**.
+- Reopening the home page reads local data without an automatic refresh. Failed refreshes retain the previous result.
+- Accounts and installation sources have separate caches. Saved account details, credential storage, and login verification are shown separately.
+- Results are encrypted on this device and can be removed with **Clear home cache**.
+
+For development tests, run `npm ci` followed by `npm test`.
 
 ### Supported Login Methods
 
